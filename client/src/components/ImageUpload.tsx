@@ -77,15 +77,15 @@ export function ImageUpload() {
         .getPublicUrl(filePath);
 
       // Process image with Edge Function
-      const functionUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/process-image`;
+      const functionUrl = 'https://image-processor-rro0.onrender.com/process-image';
       
       console.log('Calling edge function:', functionUrl);
       const response = await fetch(functionUrl, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${session.access_token}`,
           'Content-Type': 'application/json'
         },
+        
         body: JSON.stringify({ 
           image_path: publicUrl 
         })
