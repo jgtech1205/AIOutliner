@@ -1,0 +1,26 @@
+{
+  "name": "image-processor-backend",
+  "version": "1.0.0",
+  "description": "Backend server for AIOutliner using Express and TypeScript",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+"dev": "node --loader ts-node/esm --no-warnings src/index.mts",
+    "build": "tsc",
+    "start": "node dist/index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.17.30",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.8.3"
+  }
+}
