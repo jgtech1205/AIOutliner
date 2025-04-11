@@ -10,39 +10,41 @@ export function ImageUpload() {
   const [processedImage, setProcessedImage] = useState<string | null>(null);
   const [session, setSession] = useState<any>(null);
 
+  // Check for session on component mount and listen for auth state changes
   useEffect(() => {
-    // Check for session on component mount
     supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('Initial session:', session);
       setSession(session);
     });
 
-    // Listen for auth changes
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
+      console.log('Session updated:', session);
       setSession(session);
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
+  // Handle file selection and preview generation
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validate file type
+    // Validate file type: only JPEG or PNG
     if (!['image/jpeg', 'image/png'].includes(file.type)) {
       toast.error('Please select a JPG or PNG image');
       return;
     }
 
     setSelectedFile(file);
-    // Create preview URL
     const previewUrl = URL.createObjectURL(file);
     setPreview(previewUrl);
     setProcessedImage(null);
   };
 
+  // Handle image upload and processing
   const handleUpload = async () => {
     if (!selectedFile) {
       toast.error('Please select an image first');
@@ -57,63 +59,71 @@ export function ImageUpload() {
     try {
       setLoading(true);
 
-      // Upload to Supabase Storage
+      // Upload file to Supabase Storage
       const fileExt = selectedFile.name.split('.').pop();
       const fileName = `${Math.random()}.${fileExt}`;
       const filePath = `images/${fileName}`;
 
+      console.log('Uploading file to path:', filePath);
       const { error: uploadError } = await supabase.storage
         .from('images')
         .upload(filePath, selectedFile);
-
       if (uploadError) {
         console.error('Upload Error:', uploadError);
+        toast.error('Image upload failed.');
         throw uploadError;
       }
 
-      // Get public URL
+      // Retrieve the public URL for the uploaded file
       const { data: { publicUrl } } = supabase.storage
         .from('images')
         .getPublicUrl(filePath);
+      console.log('Public image URL:', publicUrl);
 
-      // Process image with Edge Function
-      const functionUrl = 'https://image-processor-rro0.onrender.com/process-image';
-      
+      // Call the Edge Function to process the image
+      const functionUrl = 'https://jbvysisuzqveiytxcqir.supabase.co/functions/v1/process-image';
       console.log('Calling edge function:', functionUrl);
-      const response = await fetch(functionUrl, {
+      
+      // Prepare the payload – note: we use "image_path" as expected by the edge function
+      const edgeResponse = await fetch(functionUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
+          // If needed, include an authorization header:
+          // 'Authorization': `Bearer ${session.access_token}`
         },
-        
-        body: JSON.stringify({ 
-          image_path: publicUrl 
-        })
+        body: JSON.stringify({ image_path: publicUrl })
       });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `Failed to process image: ${response.status} ${response.statusText}`);
+      // Check if the response is OK
+      if (!edgeResponse.ok) {
+        const errorData = await edgeResponse.json().catch(() => ({}));
+        console.error('Edge function error response:', errorData);
+        throw new Error(`Failed to process image: ${edgeResponse.status} ${edgeResponse.statusText}`);
       }
 
-      const result = await response.json();
-      
+      // Parse response JSON
+      const result = await edgeResponse.json();
+      console.log('Edge function response:', result);
+
       if (!result.processed_image_url) {
-        throw new Error('No processed image URL returned');
+        throw new Error('No processed image URL returned from edge function');
       }
-      
+
+      // Set the processed image to display in UI
       setProcessedImage(result.processed_image_url);
       toast.success('Image processed successfully!');
-    } catch (error) {
-      console.error('Error:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to process image');
       
-      // Clean up the uploaded file if processing failed
+    } catch (error: any) {
+      console.error('Error in handleUpload:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to process image');
+
+      // Cleanup: remove uploaded file if processing failed (optional)
       if (selectedFile) {
-        const fileName = `${Math.random()}.${selectedFile.name.split('.').pop()}`;
+        const cleanupFileName = `${Math.random()}.${selectedFile.name.split('.').pop()}`;
         await supabase.storage
           .from('images')
-          .remove([fileName])
+          .remove([cleanupFileName])
           .catch(console.error);
       }
     } finally {
@@ -121,20 +131,7 @@ export function ImageUpload() {
     }
   };
 
-  if (!session) {
-    return (
-      <div className="max-w-4xl mx-auto p-6">
-        <div className="bg-white rounded-2xl shadow-xl p-8 text-center">
-          <div className="flex items-center justify-center mb-8">
-            <ImageIcon className="w-10 h-10 text-indigo-600" />
-            <h1 className="text-3xl font-bold text-gray-900 ml-3">Upload Image</h1>
-          </div>
-          <p className="text-gray-600 mb-4">Please sign in to upload and process images.</p>
-        </div>
-      </div>
-    );
-  }
-
+  // Render the UI with original and processed image sections
   return (
     <div className="max-w-4xl mx-auto p-6">
       <div className="bg-white rounded-2xl shadow-xl p-8">
@@ -229,3 +226,5 @@ export function ImageUpload() {
     </div>
   );
 }
+
+export default ImageUpload;
