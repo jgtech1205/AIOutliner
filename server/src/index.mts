@@ -2,6 +2,8 @@ import express, { type Request, type Response } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { createClient } from '@supabase/supabase-js';
+import sharp from 'sharp';
+import fetch from 'node-fetch';
 
 // Load environment variables
 dotenv.config();
@@ -10,15 +12,17 @@ const app = express();
 const port = process.env.PORT || 8000;
 
 // Middleware
-app.use(cors());
-app.use(express.json());
+app.use(cors({
+  origin: process.env.CLIENT_URL || 'http://localhost:3000'
+}));
+app.use(express.json({ limit: '25mb' }));
 
 // Supabase config
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 if (!supabaseUrl || !supabaseKey) {
-  console.error('Missing Supabase configuration');
+  console.error('❌ Missing Supabase configuration');
   process.exit(1);
 }
 
@@ -31,50 +35,51 @@ app.get('/', (req: Request, res: Response) => {
 
 // Process image and return base64-encoded result
 app.post('/process-image', async (req: Request, res: Response) => {
-  const { image_path } = req.body;
+  const { image_url } = req.body; // Changed from image_path to accept URLs
 
-  if (!image_path) {
-    return res.status(400).json({ error: 'No image_path provided' });
+  if (!image_url) {
+    return res.status(400).json({ error: 'No image_url provided' });
   }
 
   try {
-    // Dynamically import Jimp
-    const jimpModule = await import('jimp');
-    const Jimp = (jimpModule as any).default || jimpModule;
-    console.log('Jimp keys:', Object.keys(Jimp)); // Debug line
+    // 1. Download the image
+    const response = await fetch(image_url);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch image: ${response.statusText}`);
+    }
+    const imageBuffer = await response.arrayBuffer();
 
-    // Use read() from Jimp
-    const image = await Jimp.read(image_path);
+    // 2. Process with Sharp
+    const processedBuffer = await sharp(Buffer.from(imageBuffer))
+      .grayscale()
+      .convolve({
+        width: 3,
+        height: 3,
+        kernel: [-1, -1, -1, -1, 8, -1, -1, -1, -1] // Edge detection
+      })
+      .png()
+      .toBuffer();
 
-    // Apply grayscale
-    image.grayscale();
-
-    // Edge detection
-    const edgeKernel = [
-      [-1, -1, -1],
-      [-1, 8, -1],
-      [-1, -1, -1],
-    ];
-    image.convolute(edgeKernel);
-
-    // Convert to buffer and base64
-    const buffer = await image.getBufferAsync('image/png');
-    const base64Image = buffer.toString('base64');
+    // 3. Convert to base64
+    const base64Image = processedBuffer.toString('base64');
     const base64DataUri = `data:image/png;base64,${base64Image}`;
 
     return res.status(200).json({
       message: 'Image processed successfully',
       base64_image: base64DataUri,
     });
+
   } catch (error: any) {
-    console.error('Error processing image:', error);
+    console.error('❌ Image processing error:', error);
     return res.status(500).json({
       error: error.message || 'Internal server error',
+      ...(process.env.NODE_ENV === 'development' && { stack: error.stack })
     });
   }
 });
 
 // Start server
 app.listen(port, () => {
-  console.log(`Server is running on port ${port}`);
+  console.log(`✅ Server running on port ${port}`);
+  console.log(`🖼️ Image processor ready at http://localhost:${port}/process-image`);
 });
