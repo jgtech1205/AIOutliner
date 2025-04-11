@@ -11,11 +11,23 @@ dotenv.config();
 const app = express();
 const port = process.env.PORT || 8000;
 
-// Middleware
-app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:3000'
-}));
+// Enhanced CORS configuration
+const corsOptions = {
+  origin: [
+    'http://localhost:5173',        // Vite default
+    'http://localhost:3000',        // Create React App default
+    'https://your-production-app.com' // Your production frontend
+  ],
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
+};
+
+app.use(cors(corsOptions));
 app.use(express.json({ limit: '25mb' }));
+
+// Handle preflight requests
+app.options('*', cors(corsOptions));
 
 // Supabase config
 const supabaseUrl = process.env.SUPABASE_URL;
@@ -28,28 +40,37 @@ if (!supabaseUrl || !supabaseKey) {
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-// Health check route
+// Health check
 app.get('/', (req: Request, res: Response) => {
-  res.send('AIOutliner backend is running');
+  res.status(200).json({ 
+    status: 'healthy',
+    timestamp: new Date().toISOString()
+  });
 });
 
-// Process image and return base64-encoded result
+// Image processing endpoint
 app.post('/process-image', async (req: Request, res: Response) => {
-  const { image_url } = req.body; // Changed from image_path to accept URLs
-
-  if (!image_url) {
-    return res.status(400).json({ error: 'No image_url provided' });
-  }
-
   try {
-    // 1. Download the image
+    const { image_url } = req.body;
+
+    // Validate input
+    if (!image_url) {
+      return res.status(400).json({ error: 'Missing image_url parameter' });
+    }
+
+    if (!isValidUrl(image_url)) {
+      return res.status(400).json({ error: 'Invalid image URL format' });
+    }
+
+    // Download image
     const response = await fetch(image_url);
     if (!response.ok) {
       throw new Error(`Failed to fetch image: ${response.statusText}`);
     }
+
     const imageBuffer = await response.arrayBuffer();
 
-    // 2. Process with Sharp
+    // Process with Sharp
     const processedBuffer = await sharp(Buffer.from(imageBuffer))
       .grayscale()
       .convolve({
@@ -60,26 +81,47 @@ app.post('/process-image', async (req: Request, res: Response) => {
       .png()
       .toBuffer();
 
-    // 3. Convert to base64
+    // Convert to base64
     const base64Image = processedBuffer.toString('base64');
     const base64DataUri = `data:image/png;base64,${base64Image}`;
 
-    return res.status(200).json({
-      message: 'Image processed successfully',
+    res.status(200).json({
+      success: true,
       base64_image: base64DataUri,
+      processed_at: new Date().toISOString()
     });
 
   } catch (error: any) {
     console.error('❌ Image processing error:', error);
-    return res.status(500).json({
+    res.status(500).json({
       error: error.message || 'Internal server error',
       ...(process.env.NODE_ENV === 'development' && { stack: error.stack })
     });
   }
 });
 
+// URL validation helper
+function isValidUrl(url: string): boolean {
+  try {
+    new URL(url);
+    return /\.(jpg|jpeg|png|webp)$/i.test(url);
+  } catch {
+    return false;
+  }
+}
+
 // Start server
 app.listen(port, () => {
   console.log(`✅ Server running on port ${port}`);
   console.log(`🖼️ Image processor ready at http://localhost:${port}/process-image`);
+  console.log(`🌐 CORS configured for: ${corsOptions.origin.join(', ')}`);
+});
+
+// Handle uncaught exceptions
+process.on('unhandledRejection', (err) => {
+  console.error('Unhandled rejection:', err);
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught exception:', err);
 });
