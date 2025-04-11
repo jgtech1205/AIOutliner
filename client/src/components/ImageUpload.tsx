@@ -32,7 +32,7 @@ export function ImageUpload() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validate file type: only JPEG or PNG
+    // Validate file type: only JPEG or PNG allowed
     if (!['image/jpeg', 'image/png'].includes(file.type)) {
       toast.error('Please select a JPG or PNG image');
       return;
@@ -59,7 +59,7 @@ export function ImageUpload() {
     try {
       setLoading(true);
 
-      // Upload file to Supabase Storage
+      // STEP 1: Upload file to Supabase Storage
       const fileExt = selectedFile.name.split('.').pop();
       const fileName = `${Math.random()}.${fileExt}`;
       const filePath = `images/${fileName}`;
@@ -68,41 +68,41 @@ export function ImageUpload() {
       const { error: uploadError } = await supabase.storage
         .from('images')
         .upload(filePath, selectedFile);
+
       if (uploadError) {
         console.error('Upload Error:', uploadError);
         toast.error('Image upload failed.');
         throw uploadError;
       }
 
-      // Retrieve the public URL for the uploaded file
+      // STEP 2: Retrieve the public URL for the uploaded file
       const { data: { publicUrl } } = supabase.storage
         .from('images')
         .getPublicUrl(filePath);
       console.log('Public image URL:', publicUrl);
 
-      // Call the Edge Function to process the image
-      const functionUrl = 'https://jbvysisuzqveiytxcqir.supabase.co/functions/v1/process-image';
+      // STEP 3: Call the Edge Function to process the image
+      // Update this URL if needed for your deployment.
+      const functionUrl = 'https://image-processor-rro0.onrender.com';
       console.log('Calling edge function:', functionUrl);
-      
-      // Prepare the payload – note: we use "image_path" as expected by the edge function
+
       const edgeResponse = await fetch(functionUrl, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
-          // If needed, include an authorization header:
-          // 'Authorization': `Bearer ${session.access_token}`
+          'Content-Type': 'application/json',
+          // Uncomment the line below if your edge function requires an Authorization header:
+          // 'Authorization': `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({ image_path: publicUrl })
       });
 
-      // Check if the response is OK
       if (!edgeResponse.ok) {
         const errorData = await edgeResponse.json().catch(() => ({}));
         console.error('Edge function error response:', errorData);
         throw new Error(`Failed to process image: ${edgeResponse.status} ${edgeResponse.statusText}`);
       }
 
-      // Parse response JSON
+      // STEP 4: Parse the response from the edge function
       const result = await edgeResponse.json();
       console.log('Edge function response:', result);
 
@@ -110,15 +110,14 @@ export function ImageUpload() {
         throw new Error('No processed image URL returned from edge function');
       }
 
-      // Set the processed image to display in UI
+      // STEP 5: Set the processed image URL to display in the UI
       setProcessedImage(result.processed_image_url);
       toast.success('Image processed successfully!');
-      
     } catch (error: any) {
       console.error('Error in handleUpload:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to process image');
 
-      // Cleanup: remove uploaded file if processing failed (optional)
+      // Optional: Cleanup the uploaded file if processing failed
       if (selectedFile) {
         const cleanupFileName = `${Math.random()}.${selectedFile.name.split('.').pop()}`;
         await supabase.storage
@@ -131,7 +130,6 @@ export function ImageUpload() {
     }
   };
 
-  // Render the UI with original and processed image sections
   return (
     <div className="max-w-4xl mx-auto p-6">
       <div className="bg-white rounded-2xl shadow-xl p-8">
@@ -195,9 +193,7 @@ export function ImageUpload() {
                   className="max-h-64 mx-auto rounded-lg"
                 />
               ) : (
-                <div className="text-gray-500">
-                  Processed image will appear here
-                </div>
+                <div className="text-gray-500">Processed image will appear here</div>
               )}
             </div>
           </div>
