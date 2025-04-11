@@ -1,13 +1,13 @@
 {
   "compilerOptions": {
-    "target": "ESNext",
-    "module": "NodeNext",             // or "CommonJS" if you prefer, but "NodeNext" works for ES modules
-    "moduleResolution": "NodeNext",   // or "Node"
-    "outDir": "dist",                 // Output directory for compiled files
-    "rootDir": "src",                 // Where your .ts / .mts files live
-    "esModuleInterop": true,          // IMPORTANT for Jimp default import
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",         
+    "outDir": "dist",
+    "rootDir": "src",
+    "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
-    "skipLibCheck": true,             // Helps avoid minor type definition conflicts
+    "skipLibCheck": true,
     "strict": true
   },
   "include": ["src"]
