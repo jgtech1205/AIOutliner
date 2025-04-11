@@ -38,14 +38,17 @@ app.post('/process-image', async (req: Request, res: Response) => {
   }
 
   try {
-    // Compatible import for CommonJS-style Jimp
+    // Dynamically import Jimp
     const jimpModule = await import('jimp');
     const Jimp = (jimpModule as any).default || jimpModule;
+    console.log('Jimp keys:', Object.keys(Jimp)); // Debug line
+
+    // Use read() from Jimp
     const image = await Jimp.read(image_path);
-  
+
     // Apply grayscale
     image.grayscale();
-  
+
     // Edge detection
     const edgeKernel = [
       [-1, -1, -1],
@@ -53,12 +56,12 @@ app.post('/process-image', async (req: Request, res: Response) => {
       [-1, -1, -1],
     ];
     image.convolute(edgeKernel);
-  
+
     // Convert to buffer and base64
     const buffer = await image.getBufferAsync('image/png');
     const base64Image = buffer.toString('base64');
     const base64DataUri = `data:image/png;base64,${base64Image}`;
-  
+
     return res.status(200).json({
       message: 'Image processed successfully',
       base64_image: base64DataUri,
@@ -69,8 +72,6 @@ app.post('/process-image', async (req: Request, res: Response) => {
       error: error.message || 'Internal server error',
     });
   }
-  
-  
 });
 
 // Start server
