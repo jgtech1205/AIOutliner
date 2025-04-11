@@ -1,23 +1,14 @@
 {
-    "compilerOptions": {
-      "target": "ES2020",
-      "module": "ESNext",
-      "moduleResolution": "Node",
-      "strict": true,
-      "esModuleInterop": true,
-      "moduleDetection": "force",
-      "skipLibCheck": true,
-      "forceConsistentCasingInFileNames": true,
-      "outDir": "dist",
-      "resolveJsonModule": true,
-      "types": ["node"]
-    },
-    "include": ["src"],
-    "ts-node": {
-      "compilerOptions": {
-        "module": "ESNext"
-      },
-      "esm": true
-    }
-  }
-  
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "NodeNext",             // or "CommonJS" if you prefer, but "NodeNext" works for ES modules
+    "moduleResolution": "NodeNext",   // or "Node"
+    "outDir": "dist",                 // Output directory for compiled files
+    "rootDir": "src",                 // Where your .ts / .mts files live
+    "esModuleInterop": true,          // IMPORTANT for Jimp default import
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,             // Helps avoid minor type definition conflicts
+    "strict": true
+  },
+  "include": ["src"]
+}
