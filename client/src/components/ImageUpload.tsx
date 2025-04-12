@@ -3,60 +3,75 @@ import { Upload, Image as ImageIcon, Loader, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { supabase } from '../lib/supabase';
 
-export function ImageUpload() {
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [preview, setPreview] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [processedImage, setProcessedImage] = useState<string | null>(null);
+interface UploadState {
+  file: File | null;
+  preview: string | null;
+  processed: string | null;
+  isLoading: boolean;
+}
+
+export default function ImageUpload() {
+  const [state, setState] = useState<UploadState>({
+    file: null,
+    preview: null,
+    processed: null,
+    isLoading: false
+  });
   const [session, setSession] = useState<any>(null);
 
-  // Handle auth state changes
+  // Handle auth state
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-    });
-
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        setSession(session);
+        if (event === 'SIGNED_OUT') {
+          setState(prev => ({ ...prev, file: null, preview: null, processed: null }));
+        }
+      }
+    );
     return () => subscription.unsubscribe();
   }, []);
 
-  // Generate preview when file is selected
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // Validate file
     if (!['image/jpeg', 'image/png'].includes(file.type)) {
-      toast.error('Only JPG/PNG images are supported');
+      toast.error('Only JPG/PNG images allowed');
       return;
     }
 
-    if (file.size > 5 * 1024 * 1024) { // 5MB limit
-      toast.error('Image must be smaller than 5MB');
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('File must be smaller than 5MB');
       return;
     }
 
-    setSelectedFile(file);
-    setPreview(URL.createObjectURL(file));
-    setProcessedImage(null);
+    setState({
+      file,
+      preview: URL.createObjectURL(file),
+      processed: null,
+      isLoading: false
+    });
   };
 
-  // Process image through backend
-  const handleUpload = async () => {
-    if (!selectedFile || !session) {
-      toast.error(selectedFile ? 'Please sign in' : 'Select an image first');
+  const processImage = async () => {
+    if (!state.file || !session) {
+      toast.error(state.file ? 'Please sign in' : 'Select an image first');
       return;
     }
 
     try {
-      setLoading(true);
+      setState(prev => ({ ...prev, isLoading: true }));
       toast.loading('Processing image...', { id: 'upload' });
 
-      // 1. Upload to Supabase Storage
-      const fileExt = selectedFile.name.split('.').pop();
+      // 1. Upload to Supabase
+      const fileExt = state.file.name.split('.').pop();
       const fileName = `${session.user.id}/${Date.now()}.${fileExt}`;
       
       const { error: uploadError } = await supabase.storage
         .from('uploads')
-        .upload(fileName, selectedFile);
+        .upload(fileName, state.file);
 
       if (uploadError) throw uploadError;
 
@@ -65,8 +80,8 @@ export function ImageUpload() {
         .from('uploads')
         .getPublicUrl(fileName);
 
-      // 3. Send to processing API
-      const response = await fetch('https://image-processor-rc.onrender.com/process-image', {
+      // 3. Process image
+      const response = await fetch('http://localhost:8000/process-image', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -80,128 +95,110 @@ export function ImageUpload() {
         throw new Error(error.error || 'Processing failed');
       }
 
-      // 4. Handle response
+      // 4. Update state
       const { base64_image } = await response.json();
-      setProcessedImage(base64_image);
+      setState(prev => ({ ...prev, processed: base64_image }));
       toast.success('Image processed!', { id: 'upload' });
 
     } catch (error: any) {
-      console.error('Upload error:', error);
+      console.error('Upload failed:', error);
       toast.error(error.message || 'Upload failed', { id: 'upload' });
     } finally {
-      setLoading(false);
+      setState(prev => ({ ...prev, isLoading: false }));
     }
   };
 
+  const resetUpload = () => {
+    if (state.preview) URL.revokeObjectURL(state.preview);
+    setState({
+      file: null,
+      preview: null,
+      processed: null,
+      isLoading: false
+    });
+  };
+
   return (
-    <div className="max-w-4xl mx-auto p-4 md:p-6">
-      <div className="bg-white rounded-xl shadow-md p-6 md:p-8">
-        <div className="flex flex-col items-center mb-8">
-          <div className="flex items-center mb-4">
-            <ImageIcon className="w-8 h-8 md:w-10 md:h-10 text-indigo-600" />
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 ml-3">
-              Image Processor
-            </h1>
-          </div>
-          <p className="text-gray-600 text-center">
-            Upload an image to apply edge detection and grayscale effects
-          </p>
+    <div className="max-w-4xl mx-auto p-4">
+      <div className="bg-white rounded-lg shadow-md p-6">
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-2xl font-bold flex items-center">
+            <ImageIcon className="w-6 h-6 mr-2 text-indigo-600" />
+            Image Processor
+          </h1>
+          {state.preview && (
+            <button 
+              onClick={resetUpload}
+              className="text-sm text-red-600 hover:text-red-500 flex items-center"
+            >
+              <Trash2 className="w-4 h-4 mr-1" />
+              Clear
+            </button>
+          )}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Original Image Panel */}
-          <div className="space-y-4">
-            <h2 className="text-lg font-semibold text-gray-800">Original</h2>
-            <div className="border-2 border-dashed border-gray-200 rounded-lg p-6 text-center h-full">
-              {preview ? (
-                <div className="flex flex-col h-full">
-                  <div className="flex-grow flex items-center justify-center">
-                    <img
-                      src={preview}
-                      alt="Original preview"
-                      className="max-h-64 max-w-full rounded-md object-contain"
-                    />
-                  </div>
-                  <button
-                    onClick={() => {
-                      setSelectedFile(null);
-                      setPreview(null);
-                      setProcessedImage(null);
-                    }}
-                    className="mt-4 flex items-center justify-center text-sm text-red-600 hover:text-red-500"
-                  >
-                    <Trash2 className="w-4 h-4 mr-1" />
-                    Remove
-                  </button>
-                </div>
-              ) : (
-                <div className="h-full flex flex-col items-center justify-center space-y-3">
-                  <div className="p-4 rounded-full bg-gray-100">
-                    <Upload className="w-8 h-8 text-gray-400" />
-                  </div>
-                  <div className="text-center">
-                    <label className="cursor-pointer font-medium text-indigo-600 hover:text-indigo-500">
-                      Select an image
-                      <input
-                        type="file"
-                        className="hidden"
-                        accept="image/jpeg, image/png"
-                        onChange={handleFileSelect}
-                      />
-                    </label>
-                    <p className="text-sm text-gray-500 mt-1">
-                      JPG or PNG, max 5MB
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Processed Image Panel */}
-          <div className="space-y-4">
-            <h2 className="text-lg font-semibold text-gray-800">Processed</h2>
-            <div className="border-2 border-gray-200 rounded-lg p-6 text-center h-full flex flex-col">
-              {processedImage ? (
-                <div className="flex-grow flex items-center justify-center">
-                  <img
-                    src={processedImage}
-                    alt="Processed result"
-                    className="max-h-64 max-w-full rounded-md object-contain"
-                  />
-                </div>
-              ) : (
-                <div className="h-full flex items-center justify-center text-gray-400">
-                  {preview ? 'Processed image will appear here' : 'Upload an image to begin'}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-8">
-          <button
-            onClick={handleUpload}
-            disabled={!selectedFile || loading}
-            className={`w-full py-3 px-6 rounded-lg font-medium transition-colors ${
-              !selectedFile || loading
-                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                : 'bg-indigo-600 hover:bg-indigo-700 text-white'
-            } flex items-center justify-center`}
-          >
-            {loading ? (
-              <>
-                <Loader className="w-5 h-5 mr-2 animate-spin" />
-                Processing...
-              </>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Original Panel */}
+          <div className="border-2 border-dashed border-gray-200 rounded-lg p-4">
+            <h2 className="text-lg font-medium mb-3">Original Image</h2>
+            {state.preview ? (
+              <img 
+                src={state.preview} 
+                alt="Original" 
+                className="w-full h-64 object-contain rounded"
+              />
             ) : (
-              <>
-                <Upload className="w-5 h-5 mr-2" />
-                Process Image
-              </>
+              <label className="flex flex-col items-center justify-center h-64 cursor-pointer text-gray-500">
+                <Upload className="w-10 h-10 mb-2" />
+                <span className="text-indigo-600">Click to upload</span>
+                <span className="text-sm">JPG/PNG (max 5MB)</span>
+                <input 
+                  type="file" 
+                  className="hidden" 
+                  accept="image/jpeg, image/png"
+                  onChange={handleFileChange}
+                />
+              </label>
             )}
-          </button>
+          </div>
+
+          {/* Processed Panel */}
+          <div className="border-2 border-gray-200 rounded-lg p-4">
+            <h2 className="text-lg font-medium mb-3">Processed Result</h2>
+            <div className="h-64 flex items-center justify-center bg-gray-50 rounded">
+              {state.processed ? (
+                <img 
+                  src={state.processed} 
+                  alt="Processed" 
+                  className="w-full h-full object-contain"
+                />
+              ) : (
+                <div className="text-center text-gray-400 p-4">
+                  {state.preview ? 'Ready to process' : 'Upload an image first'}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
+
+        <button
+          onClick={processImage}
+          disabled={!state.file || state.isLoading}
+          className={`mt-6 w-full py-2 rounded-md flex items-center justify-center ${
+            !state.file || state.isLoading
+              ? 'bg-gray-300 cursor-not-allowed'
+              : 'bg-indigo-600 hover:bg-indigo-700 text-white'
+          }`}
+        >
+          {state.isLoading ? (
+            <>
+              <Loader className="w-4 h-4 mr-2 animate-spin" />
+              Processing...
+            </>
+          ) : (
+            'Process Image'
+          )}
+        </button>
       </div>
     </div>
   );
