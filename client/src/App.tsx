@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Toaster } from 'react-hot-toast';
 import { LogIn, UserPlus, KeyRound, Image as ImageIcon } from 'lucide-react';
 import { Auth } from './components/Auth';
-import { ImageUpload } from './components/ImageUpload';
+import ImageUpload from './components/ImageUpload';  // Fixed import (no braces)
 import { supabase } from './lib/supabase';
 
 function App() {
@@ -10,15 +10,11 @@ function App() {
   const [session, setSession] = useState(null);
 
   useEffect(() => {
-    // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
     });
 
-    // Listen for auth changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
     });
 
@@ -96,4 +92,4 @@ function App() {
   );
 }
 
-export default App
+export default App;

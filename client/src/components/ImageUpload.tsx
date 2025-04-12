@@ -10,7 +10,7 @@ interface UploadState {
   isLoading: boolean;
 }
 
-export default function ImageUpload() {
+const ImageUpload = () => {
   const [state, setState] = useState<UploadState>({
     file: null,
     preview: null,
@@ -19,7 +19,6 @@ export default function ImageUpload() {
   });
   const [session, setSession] = useState<any>(null);
 
-  // Handle auth state
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
@@ -36,7 +35,6 @@ export default function ImageUpload() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validate file
     if (!['image/jpeg', 'image/png'].includes(file.type)) {
       toast.error('Only JPG/PNG images allowed');
       return;
@@ -61,48 +59,56 @@ export default function ImageUpload() {
       return;
     }
 
+    const cleanName = state.file.name.replaceAll(' ', '-');
+    const fileExt = cleanName.split('.').pop() || 'png';
+    const filePath = `${session.user.id}/${Date.now()}-${cleanName}`;
+
     try {
       setState(prev => ({ ...prev, isLoading: true }));
       toast.loading('Processing image...', { id: 'upload' });
 
-      // 1. Upload to Supabase
-      const fileExt = state.file.name.split('.').pop();
-      const fileName = `${session.user.id}/${Date.now()}.${fileExt}`;
-      
-      const { error: uploadError } = await supabase.storage
+      // ✅ Upload to Supabase (no bucket check)
+      const { error: uploadError, data: uploadData } = await supabase.storage
         .from('uploads')
-        .upload(fileName, state.file);
+        .upload(filePath, state.file, {
+          cacheControl: '3600',
+          upsert: false,
+          contentType: state.file.type
+        });
 
       if (uploadError) throw uploadError;
 
-      // 2. Get public URL
       const { data: { publicUrl } } = supabase.storage
         .from('uploads')
-        .getPublicUrl(fileName);
+        .getPublicUrl(uploadData.path);
 
-      // 3. Process image
       const response = await fetch('http://localhost:8000/process-image', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`
         },
-        body: JSON.stringify({ image_url: publicUrl })
+        body: JSON.stringify({ image_path: `${publicUrl}?t=${Date.now()}` })
       });
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Processing failed');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Server responded with ${response.status}`);
       }
 
-      // 4. Update state
       const { base64_image } = await response.json();
       setState(prev => ({ ...prev, processed: base64_image }));
-      toast.success('Image processed!', { id: 'upload' });
+      toast.success('Image processed successfully!', { id: 'upload' });
 
     } catch (error: any) {
       console.error('Upload failed:', error);
-      toast.error(error.message || 'Upload failed', { id: 'upload' });
+      toast.error(error.message || 'Upload failed. Check console for details', { id: 'upload' });
+
+      // Cleanup uploaded file if something goes wrong
+      await supabase.storage
+        .from('uploads')
+        .remove([filePath])
+        .catch(console.warn);
     } finally {
       setState(prev => ({ ...prev, isLoading: false }));
     }
@@ -127,7 +133,7 @@ export default function ImageUpload() {
             Image Processor
           </h1>
           {state.preview && (
-            <button 
+            <button
               onClick={resetUpload}
               className="text-sm text-red-600 hover:text-red-500 flex items-center"
             >
@@ -138,13 +144,12 @@ export default function ImageUpload() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Original Panel */}
           <div className="border-2 border-dashed border-gray-200 rounded-lg p-4">
             <h2 className="text-lg font-medium mb-3">Original Image</h2>
             {state.preview ? (
-              <img 
-                src={state.preview} 
-                alt="Original" 
+              <img
+                src={state.preview}
+                alt="Original"
                 className="w-full h-64 object-contain rounded"
               />
             ) : (
@@ -152,9 +157,9 @@ export default function ImageUpload() {
                 <Upload className="w-10 h-10 mb-2" />
                 <span className="text-indigo-600">Click to upload</span>
                 <span className="text-sm">JPG/PNG (max 5MB)</span>
-                <input 
-                  type="file" 
-                  className="hidden" 
+                <input
+                  type="file"
+                  className="hidden"
                   accept="image/jpeg, image/png"
                   onChange={handleFileChange}
                 />
@@ -162,14 +167,13 @@ export default function ImageUpload() {
             )}
           </div>
 
-          {/* Processed Panel */}
           <div className="border-2 border-gray-200 rounded-lg p-4">
             <h2 className="text-lg font-medium mb-3">Processed Result</h2>
             <div className="h-64 flex items-center justify-center bg-gray-50 rounded">
               {state.processed ? (
-                <img 
-                  src={state.processed} 
-                  alt="Processed" 
+                <img
+                  src={state.processed}
+                  alt="Processed"
                   className="w-full h-full object-contain"
                 />
               ) : (
@@ -202,4 +206,6 @@ export default function ImageUpload() {
       </div>
     </div>
   );
-}
+};
+
+export default ImageUpload;
