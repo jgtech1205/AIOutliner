@@ -64,7 +64,7 @@ app.post('/process-image', async (req: Request, res: Response) => {
 
     const arrayBuffer = await response.arrayBuffer();
 
-    // Process with Sharp (grayscale + edge detection + flatten white background)
+    // Process with Sharp (grayscale + edge detection)
     const processedBuffer = await sharp(Buffer.from(arrayBuffer))
       .grayscale()
       .convolve({
@@ -76,7 +76,6 @@ app.post('/process-image', async (req: Request, res: Response) => {
           -1, -1, -1
         ]
       })
-      .flatten({ background: { r: 255, g: 255, b: 255 } }) // ✅ White background
       .png()
       .toBuffer();
 
