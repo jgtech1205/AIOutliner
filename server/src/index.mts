@@ -11,7 +11,6 @@ dotenv.config();
 const app = express();
 const port = process.env.PORT || 8000;
 
-// CORS Configuration
 const allowedOrigins = [
   'http://localhost:5173',
   'https://your-production-app.com' // Replace with your deployed frontend URL
@@ -30,16 +29,15 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-// Body parsing
 app.use(express.json({ limit: '10mb' }));
 
-// Supabase Client (for future use)
+// Supabase Client (optional)
 const supabase = createClient(
   process.env.SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-// Health Check Endpoint
+// Health Check
 app.get('/', (req: Request, res: Response) => {
   res.status(200).json({
     status: 'healthy',
@@ -47,16 +45,14 @@ app.get('/', (req: Request, res: Response) => {
   });
 });
 
-// Image Processing Endpoint
+// Image Processing Route
 app.post('/process-image', async (req: Request, res: Response) => {
   try {
     const { image_path } = req.body;
-
     if (!image_path) {
       return res.status(400).json({ error: 'image_path is required' });
     }
 
-    // Download image from URL
     const response = await fetch(image_path);
     if (!response.ok) {
       throw new Error(`Failed to fetch image: ${response.statusText}`);
@@ -64,7 +60,6 @@ app.post('/process-image', async (req: Request, res: Response) => {
 
     const arrayBuffer = await response.arrayBuffer();
 
-    // Process with Sharp (grayscale + edge detection) + flatten white background
     const processedBuffer = await sharp(Buffer.from(arrayBuffer))
       .grayscale()
       .convolve({
@@ -76,11 +71,11 @@ app.post('/process-image', async (req: Request, res: Response) => {
           -1, -1, -1
         ]
       })
-      .flatten({ background: { r: 255, g: 255, b: 255 } }) // ✅ WHITE BACKGROUND
+      .threshold(50) // Extract edges clearly
+      .flatten({ background: { r: 255, g: 255, b: 255 } }) // Force white background
       .png()
       .toBuffer();
 
-    // Convert to base64
     const base64 = processedBuffer.toString('base64');
     const base64DataUri = `data:image/png;base64,${base64}`;
 
