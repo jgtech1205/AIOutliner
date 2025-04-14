@@ -33,7 +33,7 @@ app.use(cors({
 // Body parsing
 app.use(express.json({ limit: '10mb' }));
 
-// Supabase Client (for future use)
+// Supabase Client
 const supabase = createClient(
   process.env.SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -56,7 +56,6 @@ app.post('/process-image', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'image_path is required' });
     }
 
-    // Download image from URL
     const response = await fetch(image_path);
     if (!response.ok) {
       throw new Error(`Failed to fetch image: ${response.statusText}`);
@@ -64,7 +63,6 @@ app.post('/process-image', async (req: Request, res: Response) => {
 
     const arrayBuffer = await response.arrayBuffer();
 
-    // Process with Sharp (grayscale + edge detection)
     const processedBuffer = await sharp(Buffer.from(arrayBuffer))
       .grayscale()
       .convolve({
@@ -76,10 +74,10 @@ app.post('/process-image', async (req: Request, res: Response) => {
           -1, -1, -1
         ]
       })
+      .flatten({ background: { r: 255, g: 255, b: 255 } }) // ✅ Add white background
       .png()
       .toBuffer();
 
-    // Convert to base64
     const base64 = processedBuffer.toString('base64');
     const base64DataUri = `data:image/png;base64,${base64}`;
 
