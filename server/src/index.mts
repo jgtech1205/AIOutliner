@@ -79,14 +79,10 @@ app.post('/process-image', async (req: Request, res: Response) => {
       .png()
       .toBuffer();
 
-    // Convert to base64
-    const base64 = processedBuffer.toString('base64');
-    const base64DataUri = `data:image/png;base64,${base64}`;
-
-    res.status(200).json({
-      message: 'Image processed successfully',
-      base64_image: base64DataUri
-    });
+    // Respond with image file
+    res.setHeader('Content-Type', 'image/png');
+    res.setHeader('Content-Disposition', 'inline; filename=processed.png');
+    res.send(processedBuffer);
 
   } catch (error: any) {
     console.error('Processing Error:', error);
