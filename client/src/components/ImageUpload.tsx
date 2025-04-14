@@ -7,6 +7,7 @@ interface UploadState {
   file: File | null;
   preview: string | null;
   processed: string | null;
+  processedBlob: Blob | null;
   isLoading: boolean;
 }
 
@@ -15,8 +16,10 @@ const ImageUpload = () => {
     file: null,
     preview: null,
     processed: null,
+    processedBlob: null,
     isLoading: false
   });
+
   const [session, setSession] = useState<any>(null);
 
   useEffect(() => {
@@ -24,7 +27,13 @@ const ImageUpload = () => {
       (event, session) => {
         setSession(session);
         if (event === 'SIGNED_OUT') {
-          setState(prev => ({ ...prev, file: null, preview: null, processed: null }));
+          setState({
+            file: null,
+            preview: null,
+            processed: null,
+            processedBlob: null,
+            isLoading: false
+          });
         }
       }
     );
@@ -49,6 +58,7 @@ const ImageUpload = () => {
       file,
       preview: URL.createObjectURL(file),
       processed: null,
+      processedBlob: null,
       isLoading: false
     });
   };
@@ -60,14 +70,12 @@ const ImageUpload = () => {
     }
 
     const cleanName = state.file.name.replaceAll(' ', '-');
-    const fileExt = cleanName.split('.').pop() || 'png';
     const filePath = `${session.user.id}/${Date.now()}-${cleanName}`;
 
     try {
       setState(prev => ({ ...prev, isLoading: true }));
       toast.loading('Processing image...', { id: 'upload' });
 
-      // ✅ Upload to Supabase (no bucket check)
       const { error: uploadError, data: uploadData } = await supabase.storage
         .from('uploads')
         .upload(filePath, state.file, {
@@ -92,19 +100,19 @@ const ImageUpload = () => {
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `Server responded with ${response.status}`);
+        const errorText = await response.text();
+        throw new Error(`Failed to process image: ${errorText}`);
       }
 
-      const { base64_image } = await response.json();
-      setState(prev => ({ ...prev, processed: base64_image }));
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      setState(prev => ({ ...prev, processed: blobUrl, processedBlob: blob }));
       toast.success('Image processed successfully!', { id: 'upload' });
 
     } catch (error: any) {
       console.error('Upload failed:', error);
       toast.error(error.message || 'Upload failed. Check console for details', { id: 'upload' });
 
-      // Cleanup uploaded file if something goes wrong
       await supabase.storage
         .from('uploads')
         .remove([filePath])
@@ -116,12 +124,25 @@ const ImageUpload = () => {
 
   const resetUpload = () => {
     if (state.preview) URL.revokeObjectURL(state.preview);
+    if (state.processed) URL.revokeObjectURL(state.processed);
     setState({
       file: null,
       preview: null,
       processed: null,
+      processedBlob: null,
       isLoading: false
     });
+  };
+
+  const downloadImage = () => {
+    if (!state.processedBlob) return;
+
+    const url = URL.createObjectURL(state.processedBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'processed-image.png';
+    link.click();
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -144,6 +165,7 @@ const ImageUpload = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Original Image */}
           <div className="border-2 border-dashed border-gray-200 rounded-lg p-4">
             <h2 className="text-lg font-medium mb-3">Original Image</h2>
             {state.preview ? (
@@ -167,15 +189,24 @@ const ImageUpload = () => {
             )}
           </div>
 
+          {/* Processed Result */}
           <div className="border-2 border-gray-200 rounded-lg p-4">
             <h2 className="text-lg font-medium mb-3">Processed Result</h2>
-            <div className="h-64 flex items-center justify-center bg-gray-50 rounded">
+            <div className="h-64 flex flex-col items-center justify-center bg-gray-50 rounded">
               {state.processed ? (
-                <img
-                  src={state.processed}
-                  alt="Processed"
-                  className="w-full h-full object-contain"
-                />
+                <>
+                  <img
+                    src={state.processed}
+                    alt="Processed"
+                    className="w-full h-full object-contain"
+                  />
+                  <button
+                    onClick={downloadImage}
+                    className="mt-4 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md text-sm"
+                  >
+                    Download Processed Image
+                  </button>
+                </>
               ) : (
                 <div className="text-center text-gray-400 p-4">
                   {state.preview ? 'Ready to process' : 'Upload an image first'}
