@@ -56,7 +56,7 @@ app.post('/process-image', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'image_path is required' });
     }
 
-    // Download image from URL
+    // Download image from Supabase or external storage
     const response = await fetch(image_path);
     if (!response.ok) {
       throw new Error(`Failed to fetch image: ${response.statusText}`);
@@ -64,25 +64,24 @@ app.post('/process-image', async (req: Request, res: Response) => {
 
     const arrayBuffer = await response.arrayBuffer();
 
-    // Process with Sharp (grayscale + edge detection)
+    // 🖼️ Process image using Sharp
     const processedBuffer = await sharp(Buffer.from(arrayBuffer))
-  .resize({ width: 800 })
-  .flatten({ background: { r: 255, g: 255, b: 255 } }) // ✅ White background
-  .grayscale()
-  .convolve({
-    width: 3,
-    height: 3,
-    kernel: [
-      -1, -1, -1,
-      -1,  8, -1,
-      -1, -1, -1
-    ]
-  })
-  .png()
-  .toBuffer();
+      .resize({ width: 800 }) // optional: scale image
+      .flatten({ background: { r: 0, g: 0, b: 0 } }) // ✅ black background
+      .grayscale()
+      .convolve({
+        width: 3,
+        height: 3,
+        kernel: [
+          -1, -1, -1,
+          -1,  8, -1,
+          -1, -1, -1
+        ]
+      })
+      .png()
+      .toBuffer();
 
-
-    // Respond with image file
+    // ⬇️ Send image as response
     res.setHeader('Content-Type', 'image/png');
     res.setHeader('Content-Disposition', 'inline; filename=processed.png');
     res.send(processedBuffer);
