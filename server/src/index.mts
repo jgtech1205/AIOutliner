@@ -66,21 +66,22 @@ app.post('/process-image', async (req: Request, res: Response) => {
 
     // Process with Sharp (grayscale + edge detection)
     const processedBuffer = await sharp(Buffer.from(arrayBuffer))
-    .resize({ width: 800 })
-    .ensureAlpha() // Force an alpha channel first
-    .flatten({ background: { r: 255, g: 255, b: 255 } }) // Then flatten with white background
-    .grayscale()
-    .convolve({
-      width: 3,
-      height: 3,
-      kernel: [
-        -1, -1, -1,
-        -1,  8, -1,
-        -1, -1, -1
-      ]
-    })
-    .png()
-    .toBuffer();
+  .resize({ width: 800 }) // Optional resizing
+  .flatten({ background: { r: 255, g: 255, b: 255 } }) // Ensure white background
+  .grayscale()
+  .convolve({
+    width: 3,
+    height: 3,
+    kernel: [
+      -1, -1, -1,
+      -1,  8, -1,
+      -1, -1, -1
+    ]
+  })
+  .negate() // Invert the colors: white -> black, black -> white
+  .png()
+  .toBuffer();
+
   
   
 
