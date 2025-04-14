@@ -33,7 +33,7 @@ app.use(cors({
 // Body parsing
 app.use(express.json({ limit: '10mb' }));
 
-// Supabase Client
+// Supabase Client (for future use)
 const supabase = createClient(
   process.env.SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -56,14 +56,22 @@ app.post('/process-image', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'image_path is required' });
     }
 
+    // Download image from URL
     const response = await fetch(image_path);
     if (!response.ok) {
       throw new Error(`Failed to fetch image: ${response.statusText}`);
     }
 
-    const arrayBuffer = await response.arrayBuffer();
+    const inputBuffer = Buffer.from(await response.arrayBuffer());
 
-    const processedBuffer = await sharp(Buffer.from(arrayBuffer))
+    // Get original dimensions
+    const { width, height } = await sharp(inputBuffer).metadata();
+    if (!width || !height) {
+      throw new Error('Could not determine image dimensions');
+    }
+
+    // Create edge-detection result (no alpha)
+    const edgeImage = await sharp(inputBuffer)
       .grayscale()
       .convolve({
         width: 3,
@@ -74,11 +82,24 @@ app.post('/process-image', async (req: Request, res: Response) => {
           -1, -1, -1
         ]
       })
-      .flatten({ background: { r: 255, g: 255, b: 255 } }) // ✅ Add white background
+      .removeAlpha()
+      .toBuffer();
+
+    // Composite over white background
+    const finalBuffer = await sharp({
+      create: {
+        width,
+        height,
+        channels: 3,
+        background: { r: 255, g: 255, b: 255 }
+      }
+    })
+      .composite([{ input: edgeImage }])
       .png()
       .toBuffer();
 
-    const base64 = processedBuffer.toString('base64');
+    // Convert to base64
+    const base64 = finalBuffer.toString('base64');
     const base64DataUri = `data:image/png;base64,${base64}`;
 
     res.status(200).json({
