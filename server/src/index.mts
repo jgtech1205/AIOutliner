@@ -66,25 +66,23 @@ app.post('/process-image', async (req: Request, res: Response) => {
 
     // Process with Sharp (grayscale + edge detection)
     const processedBuffer = await sharp(Buffer.from(arrayBuffer))
-    .resize({ width: 800 }) // Resize if needed
-    .grayscale()
-    .convolve({
-      width: 3,
-      height: 3,
-      kernel: [
-        -1, -1, -1,
-        -1, 8, -1,
-        -1, -1, -1
-      ]
-    })
-    .threshold(10) // Optional: make edges sharper
-    .flatten({ background: { r: 255, g: 255, b: 255 } }) // Apply white background AFTER edges
-    .png()
-    .toBuffer();
-  
+  .resize({ width: 800 }) // Optional resizing
+  .flatten({ background: { r: 255, g: 255, b: 255 } }) // Ensure white background
+  .grayscale()
+  .convolve({
+    width: 3,
+    height: 3,
+    kernel: [
+      -1, -1, -1,
+      -1,  8, -1,
+      -1, -1, -1
+    ]
+  })
+  .negate() // Invert the colors: white -> black, black -> white
+  .png()
+  .toBuffer();
 
-  
-  
+
 
     // Respond with image file
     res.setHeader('Content-Type', 'image/png');
