@@ -62,16 +62,10 @@ app.post('/process-image', async (req: Request, res: Response) => {
       throw new Error(`Failed to fetch image: ${response.statusText}`);
     }
 
-    const inputBuffer = Buffer.from(await response.arrayBuffer());
+    const arrayBuffer = await response.arrayBuffer();
 
-    // Get original dimensions
-    const { width, height } = await sharp(inputBuffer).metadata();
-    if (!width || !height) {
-      throw new Error('Could not determine image dimensions');
-    }
-
-    // Create edge-detection result (no alpha)
-    const edgeImage = await sharp(inputBuffer)
+    // Process with Sharp (grayscale + edge detection + white background)
+    const processedBuffer = await sharp(Buffer.from(arrayBuffer))
       .grayscale()
       .convolve({
         width: 3,
@@ -83,23 +77,12 @@ app.post('/process-image', async (req: Request, res: Response) => {
         ]
       })
       .removeAlpha()
-      .toBuffer();
-
-    // Composite over white background
-    const finalBuffer = await sharp({
-      create: {
-        width,
-        height,
-        channels: 3,
-        background: { r: 255, g: 255, b: 255 }
-      }
-    })
-      .composite([{ input: edgeImage }])
+      .flatten({ background: { r: 255, g: 255, b: 255 } }) // Ensure white background
       .png()
       .toBuffer();
 
     // Convert to base64
-    const base64 = finalBuffer.toString('base64');
+    const base64 = processedBuffer.toString('base64');
     const base64DataUri = `data:image/png;base64,${base64}`;
 
     res.status(200).json({
