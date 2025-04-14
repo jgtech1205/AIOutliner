@@ -66,18 +66,19 @@ app.post('/process-image', async (req: Request, res: Response) => {
 
     // Process with Sharp (grayscale + edge detection)
     const processedBuffer = await sharp(Buffer.from(arrayBuffer))
-      .grayscale()
-      .convolve({
-        width: 3,
-        height: 3,
-        kernel: [
-          -1, -1, -1,
-          -1, 8, -1,
-          -1, -1, -1
-        ]
-      })
-      .png()
-      .toBuffer();
+  .grayscale()
+  .convolve({
+    width: 3,
+    height: 3,
+    kernel: [
+      -1, -1, -1,
+      -1, 8, -1,
+      -1, -1, -1
+    ]
+  })
+  .flatten({ background: { r: 255, g: 255, b: 255 } }) // ✅ ensures white background
+  .png()
+  .toBuffer();
 
     // Convert to base64
     const base64 = processedBuffer.toString('base64');
