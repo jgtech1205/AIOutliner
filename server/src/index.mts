@@ -63,9 +63,14 @@ app.post('/process-image', async (req: Request, res: Response) => {
     }
 
     const arrayBuffer = await response.arrayBuffer();
+    const imageBuffer = Buffer.from(arrayBuffer);
 
-    // Process with Sharp (grayscale + edge detection + white background)
-    const processedBuffer = await sharp(Buffer.from(arrayBuffer))
+    // Get metadata to preserve dimensions
+    const metadata = await sharp(imageBuffer).metadata();
+
+    // Apply edge detection and flatten to white background
+    const processedBuffer = await sharp(imageBuffer)
+      .resize({ width: metadata.width, height: metadata.height })
       .grayscale()
       .convolve({
         width: 3,
@@ -76,8 +81,7 @@ app.post('/process-image', async (req: Request, res: Response) => {
           -1, -1, -1
         ]
       })
-      .removeAlpha()
-      .flatten({ background: { r: 255, g: 255, b: 255 } }) // Ensure white background
+      .flatten({ background: { r: 255, g: 255, b: 255 } }) // ✅ white background
       .png()
       .toBuffer();
 
