@@ -64,27 +64,27 @@ app.post('/process-image', async (req: Request, res: Response) => {
 
     const arrayBuffer = await response.arrayBuffer();
 
-    // Process with Sharp (add white background, grayscale + edge detection)
+    // Process with Sharp (grayscale + edge detection)
     const processedBuffer = await sharp(Buffer.from(arrayBuffer))
-      .resize({ width: 800 }) // Resize if needed
-      .flatten({ background: { r: 255, g: 255, b: 255, alpha: 1 } }) // Add white background
-      .grayscale()
-      .convolve({
-        width: 3,
-        height: 3,
-        kernel: [
-          -1, -1, -1,
-          -1, 8, -1,
-          -1, -1, -1
-        ]
-      })
-      .png()
-      .toBuffer();
+  .resize({ width: 800 }) // Resize if needed
+  .flatten({ background: { r: 0, g: 0, b: 0, alpha: 1 } }) // Add black background
+  .grayscale()
+  .convolve({
+    width: 3,
+    height: 3,
+    kernel: [
+      -1, -1, -1,
+      -1, 8, -1,
+      -1, -1, -1
+    ]
+  })
+  .png()
+  .toBuffer();
 
-    // Respond with image file
-    res.setHeader('Content-Type', 'image/png');
-    res.setHeader('Content-Disposition', 'inline; filename=processed.png');
-    res.send(processedBuffer);
+res.setHeader('Content-Type', 'image/png');
+res.setHeader('Content-Disposition', 'inline; filename=processed.png');
+res.send(processedBuffer);
+
 
   } catch (error: any) {
     console.error('Processing Error:', error);
