@@ -5,7 +5,7 @@
   "type": "module",
   "main": "dist/index.mjs",
   "scripts": {
-    "dev": "node --loader ts-node/esm --no-warnings src/index.mts",
+    "dev": "node --loader ts-node/esm --trace-warnings src/index.mts",
     "build": "tsc",
     "start": "node dist/index.mjs"
   },

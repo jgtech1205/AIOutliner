@@ -4,7 +4,6 @@ import dotenv from 'dotenv';
 import { createClient } from '@supabase/supabase-js';
 import sharp from 'sharp';
 import fetch from 'node-fetch';
-import { Potrace } from 'potrace'; // npm install potrace
 
 dotenv.config();
 
@@ -13,7 +12,7 @@ const port = process.env.PORT || 8000;
 
 const allowedOrigins = [
   'http://localhost:5173',
-  'https://your-production-app.com'
+  'https://your-production-app.com' // Replace with real domain
 ];
 
 app.use(cors({
@@ -37,13 +36,15 @@ const supabase = createClient(
 );
 
 app.get('/', (req: Request, res: Response) => {
-  res.status(200).json({ status: 'healthy', timestamp: new Date().toISOString() });
+  res.status(200).json({
+    status: 'healthy',
+    timestamp: new Date().toISOString()
+  });
 });
 
 app.post('/process-image', async (req: Request, res: Response) => {
   try {
-    const { image_path, format = 'png' } = req.body;
-
+    const { image_path } = req.body;
     if (!image_path) {
       return res.status(400).json({ error: 'image_path is required' });
     }
@@ -53,68 +54,49 @@ app.post('/process-image', async (req: Request, res: Response) => {
       throw new Error(`Failed to fetch image: ${response.statusText}`);
     }
 
-    const buffer = Buffer.from(await response.arrayBuffer());
-    let mimeType = '';
-    let filename = '';
-    let outputBuffer: Buffer;
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
 
-    const sharpPipeline = sharp(buffer)
+    const processedBuffer = await sharp(buffer)
       .resize({ width: 800 })
       .grayscale()
       .convolve({
         width: 3,
         height: 3,
-        kernel: [-1, -1, -1, -1, 8, -1, -1, -1, -1]
+        kernel: [
+          -1, -1, -1,
+          -1,  8, -1,
+          -1, -1, -1
+        ]
       })
-      .flatten({ background: { r: 255, g: 255, b: 255 } }) // white background
+      .flatten({ background: { r: 255, g: 255, b: 255 } })
       .negate()
-      .sharpen();
+      .sharpen()
+      .png()
+      .toBuffer();
 
-    switch (format) {
-      case 'png':
-        mimeType = 'image/png';
-        filename = 'processed.png';
-        outputBuffer = await sharpPipeline.png().toBuffer();
-        break;
-      case 'jpeg':
-        mimeType = 'image/jpeg';
-        filename = 'processed.jpeg';
-        outputBuffer = await sharpPipeline.jpeg().toBuffer();
-        break;
-      case 'svg':
-        mimeType = 'image/svg+xml';
-        filename = 'processed.svg';
-
-
-const svg = await new Promise<string>((resolve, reject) => {
-  new Potrace().loadImage(buffer, (err: Error | null, svgData: string) => {
-    if (err) return reject(err);
-    resolve(svgData);
-  });
-});
-
-        outputBuffer = Buffer.from(svg);
-        break;
-      case 'dst':
-        mimeType = 'application/octet-stream';
-        filename = 'processed.dst';
-        outputBuffer = Buffer.from('DST conversion not implemented yet.', 'utf-8');
-        break;
-      default:
-        throw new Error('Unsupported format requested');
-    }
-
-    res.setHeader('Content-Type', mimeType);
-    res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
-    res.send(outputBuffer);
+    res.setHeader('Content-Type', 'image/png');
+    res.setHeader('Content-Disposition', 'inline; filename=processed.png');
+    res.send(processedBuffer);
 
   } catch (error: any) {
     console.error('Processing Error:', error);
-    res.status(500).json({ error: error.message || 'Image processing failed' });
+    res.status(500).json({
+      error: error.message || 'Image processing failed'
+    });
   }
 });
 
 app.listen(port, () => {
   console.log(`🚀 Server is running on port ${port}`);
   console.log(`🌐 CORS enabled for: ${allowedOrigins.join(', ')}`);
+});
+
+// ✅ Optional: Catch uncaught exceptions and unhandled rejections
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception:', err);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
 });
