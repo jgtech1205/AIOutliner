@@ -4,8 +4,11 @@ import dotenv from 'dotenv';
 import { createClient } from '@supabase/supabase-js';
 import sharp from 'sharp';
 import fetch from 'node-fetch';
-import { Potrace } from 'potrace'; // SVG conversion
+import potrace from 'potrace';
 
+const { Potrace } = potrace;
+
+// Load environment variables
 dotenv.config();
 
 const app = express();
@@ -13,7 +16,7 @@ const port = process.env.PORT || 8000;
 
 const allowedOrigins = [
   'http://localhost:5173',
-  'https://your-production-app.com'
+  'https://your-production-app.com' // Replace with your frontend URL
 ];
 
 app.use(cors({
@@ -36,13 +39,15 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-app.get('/', (req: Request, res: Response) => {
+// Health check endpoint
+app.get('/', (_req: Request, res: Response) => {
   res.status(200).json({
     status: 'healthy',
     timestamp: new Date().toISOString()
   });
 });
 
+// Image processing route
 app.post('/process-image', async (req: Request, res: Response) => {
   try {
     const { image_path, format = 'png' } = req.body;
@@ -51,6 +56,7 @@ app.post('/process-image', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'image_path is required' });
     }
 
+    // Download the image from Supabase public URL
     const response = await fetch(image_path);
     if (!response.ok) {
       throw new Error(`Failed to fetch image: ${response.statusText}`);
@@ -60,6 +66,7 @@ app.post('/process-image', async (req: Request, res: Response) => {
     const buffer = Buffer.from(arrayBuffer);
 
     if (format === 'svg') {
+      // Preprocess and trace as SVG
       const preProcessed = await sharp(buffer)
         .resize({ width: 800 })
         .grayscale()
@@ -88,10 +95,12 @@ app.post('/process-image', async (req: Request, res: Response) => {
 
         res.setHeader('Content-Type', 'image/svg+xml');
         res.setHeader('Content-Disposition', 'inline; filename=processed.svg');
+        res.setHeader('Content-Length', Buffer.byteLength(svgData));
         res.send(svgData);
       });
 
     } else {
+      // Default to PNG or JPEG
       const pipeline = sharp(buffer)
         .resize({ width: 800 })
         .grayscale()
@@ -108,10 +117,13 @@ app.post('/process-image', async (req: Request, res: Response) => {
         .negate()
         .sharpen();
 
-      const outputBuffer = await (format === 'jpeg' ? pipeline.jpeg() : pipeline.png()).toBuffer();
+      const outputBuffer = await (
+        format === 'jpeg' ? pipeline.jpeg() : pipeline.png()
+      ).toBuffer();
 
       res.setHeader('Content-Type', `image/${format}`);
       res.setHeader('Content-Disposition', `inline; filename=processed.${format}`);
+      res.setHeader('Content-Length', outputBuffer.length);
       res.send(outputBuffer);
     }
 
@@ -123,6 +135,7 @@ app.post('/process-image', async (req: Request, res: Response) => {
   }
 });
 
+// Start server
 app.listen(port, () => {
   console.log(`🚀 Server is running on port ${port}`);
   console.log(`🌐 CORS enabled for: ${allowedOrigins.join(', ')}`);
