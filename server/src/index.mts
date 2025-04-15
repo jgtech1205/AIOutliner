@@ -12,7 +12,7 @@ const port = process.env.PORT || 8000;
 
 const allowedOrigins = [
   'http://localhost:5173',
-  'https://your-production-app.com' // Replace for production
+  'https://your-production-app.com' // Replace with real domain
 ];
 
 app.use(cors({
@@ -59,23 +59,25 @@ app.post('/process-image', async (req: Request, res: Response) => {
 
     const processedBuffer = await sharp(buffer)
       .resize({ width: 800 })
-      .flatten({ background: { r: 255, g: 255, b: 255 } }) // ✅ white background
       .grayscale()
       .convolve({
         width: 3,
         height: 3,
         kernel: [
           -1, -1, -1,
-          -1, 8, -1,
+          -1,  8, -1,
           -1, -1, -1
         ]
       })
+      .negate() // This makes edges black and background white
+      .flatten({ background: { r: 255, g: 255, b: 255 } }) // Ensures no transparency
       .png()
       .toBuffer();
 
     res.setHeader('Content-Type', 'image/png');
     res.setHeader('Content-Disposition', 'inline; filename=processed.png');
     res.send(processedBuffer);
+
   } catch (error: any) {
     console.error('Processing Error:', error);
     res.status(500).json({
