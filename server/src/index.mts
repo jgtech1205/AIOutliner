@@ -122,5 +122,5 @@ app.post('/process-image', async (req: Request, res: Response) => {
 // Start Server
 app.listen(port, () => {
   console.log(`🚀 Server is running on port ${port}`);
-  console.log(`🌐 CORS enabled for: ${allowedOrigins.join(', ')}`);
+  console.log(`🌐 CORS enabled for: ${allowedOrigins.join(', ')}`)
 });
