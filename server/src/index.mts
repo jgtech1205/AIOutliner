@@ -65,15 +65,16 @@ app.post('/process-image', async (req: Request, res: Response): Promise<void> =>
 
     if (format === 'svg') {
       const preProcessed = await sharp(buffer)
-        .resize({ width: 800 })
-        .grayscale()
-        .normalize()
-        .modulate({ brightness: 1.1, contrast: 1.2 })
-        .threshold(128)
-        .flatten({ background: { r: 255, g: 255, b: 255 } })
-        .sharpen()
-        .png()
-        .toBuffer();
+  .resize({ width: 800 })
+  .grayscale()
+  .normalize() // boost contrast automatically
+  .modulate({ brightness: 1.1 }) // ONLY brightness allowed here
+  .threshold(128) // clear black & white split
+  .flatten({ background: { r: 255, g: 255, b: 255 } })
+  .sharpen()
+  .png()
+  .toBuffer();
+
     
       const tracer = new Potrace({
         threshold: 128,
