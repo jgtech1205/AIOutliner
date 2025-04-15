@@ -1,12 +1,15 @@
-import express, { type Request, type Response } from 'express';
+import express from 'express';
+import type { Request, Response } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { createClient } from '@supabase/supabase-js';
 import sharp from 'sharp';
 import fetch from 'node-fetch';
+// @ts-ignore for CJS compatibility
 import potrace from 'potrace';
 
-const { Potrace } = potrace;
+const Potrace = (potrace as any).Potrace;
+
 
 // Load environment variables
 dotenv.config();
