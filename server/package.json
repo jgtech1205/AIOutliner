@@ -22,6 +22,7 @@
     "jimp": "^1.6.0",
     "lucide-react": "^0.487.0",
     "node-fetch": "^3.3.2",
+    "potrace": "^2.1.8",
     "react-hot-toast": "^2.5.2",
     "sharp": "^0.34.1",
     "uuid": "^11.1.0"
