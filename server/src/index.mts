@@ -65,33 +65,22 @@ app.post('/process-image', async (req: Request, res: Response) => {
     const arrayBuffer = await response.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    // Process with Sharp (grayscale + edge detection)
-    const processedBuffer = await sharp(Buffer.from(arrayBuffer))
-  .resize({ width: 800 }) // Optional resizing
-<<<<<<< HEAD
-
-
-
-
-  .flatten({ background: { r: 255, g: 255, b: 255 } }) // Ensure white background
-  .grayscale()
-  .convolve({
-    width: 3,
-    height: 3,
-    kernel: [
-      -1, -1, -1,
-      -1,  8, -1,
-      -1, -1, -1
-    ]
-  })
-<<<<<<< HEAD
-  .negate() // Invert the colors: white -> black, black -> white
-=======
->>>>>>> ae15f2d (updated)
-  .png()
-  .toBuffer();
-
-
+    // Process with Sharp: grayscale + edge detect + white background
+    const processedBuffer = await sharp(buffer)
+      .resize({ width: 800 }) // Optional resizing
+      .flatten({ background: { r: 255, g: 255, b: 255 } }) // White background
+      .grayscale()
+      .convolve({
+        width: 3,
+        height: 3,
+        kernel: [
+          -1, -1, -1,
+          -1,  8, -1,
+          -1, -1, -1
+        ]
+      })
+      .png()
+      .toBuffer();
 
     // Respond with image file
     res.setHeader('Content-Type', 'image/png');
@@ -109,10 +98,5 @@ app.post('/process-image', async (req: Request, res: Response) => {
 // Start Server
 app.listen(port, () => {
   console.log(`🚀 Server is running on port ${port}`);
-<<<<<<< HEAD
-  console.log(`🌐 CORS enabled for: ${allowedOrigins.join(', ')}`)
-});
-=======
   console.log(`🌐 CORS enabled for: ${allowedOrigins.join(', ')}`);
 });
->>>>>>> ae15f2d (updated)
