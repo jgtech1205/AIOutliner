@@ -5,13 +5,10 @@ import dotenv from 'dotenv';
 import { createClient } from '@supabase/supabase-js';
 import sharp from 'sharp';
 import fetch from 'node-fetch';
-// @ts-ignore for CJS compatibility
 import potrace from 'potrace';
 
-const Potrace = (potrace as any).Potrace;
+const { Potrace } = potrace;
 
-
-// Load environment variables
 dotenv.config();
 
 const app = express();
@@ -19,7 +16,7 @@ const port = process.env.PORT || 8000;
 
 const allowedOrigins = [
   'http://localhost:5173',
-  'https://your-production-app.com' // Replace with your frontend URL
+  'https://your-production-app.com'
 ];
 
 app.use(cors({
@@ -42,7 +39,7 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-// Health check endpoint
+// Health check
 app.get('/', (_req: Request, res: Response) => {
   res.status(200).json({
     status: 'healthy',
@@ -50,7 +47,6 @@ app.get('/', (_req: Request, res: Response) => {
   });
 });
 
-// Image processing route
 app.post('/process-image', async (req: Request, res: Response) => {
   try {
     const { image_path, format = 'png' } = req.body;
@@ -59,7 +55,6 @@ app.post('/process-image', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'image_path is required' });
     }
 
-    // Download the image from Supabase public URL
     const response = await fetch(image_path);
     if (!response.ok) {
       throw new Error(`Failed to fetch image: ${response.statusText}`);
@@ -69,7 +64,6 @@ app.post('/process-image', async (req: Request, res: Response) => {
     const buffer = Buffer.from(arrayBuffer);
 
     if (format === 'svg') {
-      // Preprocess and trace as SVG
       const preProcessed = await sharp(buffer)
         .resize({ width: 800 })
         .grayscale()
@@ -85,12 +79,12 @@ app.post('/process-image', async (req: Request, res: Response) => {
         .flatten({ background: { r: 255, g: 255, b: 255 } })
         .negate()
         .sharpen()
-        .toFormat('png')
+        .png()
         .toBuffer();
 
       const tracer = new Potrace({ threshold: 128 });
 
-      tracer.loadImage(preProcessed, (err, svgData) => {
+      tracer.loadImage(preProcessed, (err: Error | null, svgData: string) => {
         if (err) {
           console.error('SVG conversion error:', err);
           return res.status(500).json({ error: 'SVG conversion failed' });
@@ -103,7 +97,6 @@ app.post('/process-image', async (req: Request, res: Response) => {
       });
 
     } else {
-      // Default to PNG or JPEG
       const pipeline = sharp(buffer)
         .resize({ width: 800 })
         .grayscale()
@@ -138,7 +131,11 @@ app.post('/process-image', async (req: Request, res: Response) => {
   }
 });
 
-// Start server
+// Global uncaught error handler
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception:', err);
+});
+
 app.listen(port, () => {
   console.log(`🚀 Server is running on port ${port}`);
   console.log(`🌐 CORS enabled for: ${allowedOrigins.join(', ')}`);
