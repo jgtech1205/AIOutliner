@@ -6,9 +6,10 @@
     "outDir": "dist",
     "rootDir": "src",
     "esModuleInterop": true,
+    "moduleDetection": "force",
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true,
     "strict": true
   },
-    "include": ["src", "potrace.d.ts"]
+  "include": ["src", "potrace.d.ts"]
 }
