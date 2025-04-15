@@ -1,6 +1,5 @@
-import express from 'express';
-import type { Request, Response, RequestHandler } from 'express';
-import cors, { CorsOptions } from 'cors';
+import express, { type Request, type Response } from 'express';
+import cors from 'cors';
 import dotenv from 'dotenv';
 import { createClient } from '@supabase/supabase-js';
 import sharp from 'sharp';
@@ -17,7 +16,7 @@ const allowedOrigins = [
   'https://your-production-app.com'
 ];
 
-const corsOptions: CorsOptions = {
+const corsOptions = {
   origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
@@ -38,6 +37,7 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
+// Health check
 app.get('/', (_req: Request, res: Response) => {
   res.status(200).json({
     status: 'healthy',
@@ -45,7 +45,8 @@ app.get('/', (_req: Request, res: Response) => {
   });
 });
 
-const processImageHandler = async (req: Request, res: Response): Promise<void> => {
+// Image processing route
+app.post('/process-image', async (req: Request, res: Response): Promise<void> => {
   try {
     const { image_path, format = 'png' } = req.body;
 
@@ -53,7 +54,6 @@ const processImageHandler = async (req: Request, res: Response): Promise<void> =
       res.status(400).json({ error: 'image_path is required' });
       return;
     }
-    
 
     const response = await fetch(image_path);
     if (!response.ok) {
@@ -87,7 +87,8 @@ const processImageHandler = async (req: Request, res: Response): Promise<void> =
       tracer.loadImage(preProcessed, (err: Error | null, svgData: string) => {
         if (err) {
           console.error('SVG conversion error:', err);
-          return res.status(500).json({ error: 'SVG conversion failed' });
+          res.status(500).json({ error: 'SVG conversion failed' });
+          return;
         }
 
         res.setHeader('Content-Type', 'image/svg+xml');
@@ -95,7 +96,6 @@ const processImageHandler = async (req: Request, res: Response): Promise<void> =
         res.setHeader('Content-Length', Buffer.byteLength(svgData));
         res.send(svgData);
       });
-
     } else {
       const pipeline = sharp(buffer)
         .resize({ width: 800 })
@@ -122,21 +122,20 @@ const processImageHandler = async (req: Request, res: Response): Promise<void> =
       res.setHeader('Content-Length', outputBuffer.length);
       res.send(outputBuffer);
     }
-
   } catch (error: any) {
     console.error('Processing Error:', error);
     res.status(500).json({
       error: error.message || 'Image processing failed'
     });
   }
-};
+});
 
-app.post('/process-image', processImageHandler);
-
+// Uncaught error listener
 process.on('uncaughtException', (err) => {
   console.error('Uncaught Exception:', err);
 });
 
+// Start server
 app.listen(port, () => {
   console.log(`🚀 Server is running on port ${port}`);
   console.log(`🌐 CORS enabled for: ${allowedOrigins.join(', ')}`);

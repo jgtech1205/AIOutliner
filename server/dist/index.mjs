@@ -28,13 +28,15 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json({ limit: '10mb' }));
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+// Health check
 app.get('/', (_req, res) => {
     res.status(200).json({
         status: 'healthy',
         timestamp: new Date().toISOString()
     });
 });
-const processImageHandler = async (req, res) => {
+// Image processing route
+app.post('/process-image', async (req, res) => {
     try {
         const { image_path, format = 'png' } = req.body;
         if (!image_path) {
@@ -69,7 +71,8 @@ const processImageHandler = async (req, res) => {
             tracer.loadImage(preProcessed, (err, svgData) => {
                 if (err) {
                     console.error('SVG conversion error:', err);
-                    return res.status(500).json({ error: 'SVG conversion failed' });
+                    res.status(500).json({ error: 'SVG conversion failed' });
+                    return;
                 }
                 res.setHeader('Content-Type', 'image/svg+xml');
                 res.setHeader('Content-Disposition', 'inline; filename=processed.svg');
@@ -106,11 +109,12 @@ const processImageHandler = async (req, res) => {
             error: error.message || 'Image processing failed'
         });
     }
-};
-app.post('/process-image', processImageHandler);
+});
+// Uncaught error listener
 process.on('uncaughtException', (err) => {
     console.error('Uncaught Exception:', err);
 });
+// Start server
 app.listen(port, () => {
     console.log(`🚀 Server is running on port ${port}`);
     console.log(`🌐 CORS enabled for: ${allowedOrigins.join(', ')}`);
