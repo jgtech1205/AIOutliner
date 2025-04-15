@@ -5,16 +5,14 @@ import { createClient } from '@supabase/supabase-js';
 import sharp from 'sharp';
 import fetch from 'node-fetch';
 
-// Load environment variables
 dotenv.config();
 
 const app = express();
 const port = process.env.PORT || 8000;
 
-// CORS Configuration
 const allowedOrigins = [
   'http://localhost:5173',
-  'https://your-production-app.com' // Replace with your deployed frontend URL
+  'https://your-production-app.com' // Replace for production
 ];
 
 app.use(cors({
@@ -37,7 +35,6 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-// Health Check
 app.get('/', (req: Request, res: Response) => {
   res.status(200).json({
     status: 'healthy',
@@ -45,23 +42,26 @@ app.get('/', (req: Request, res: Response) => {
   });
 });
 
-// Image Processing
 app.post('/process-image', async (req: Request, res: Response) => {
   try {
     const { image_path } = req.body;
-    if (!image_path) return res.status(400).json({ error: 'image_path is required' });
+    if (!image_path) {
+      return res.status(400).json({ error: 'image_path is required' });
+    }
 
     const response = await fetch(image_path);
-    if (!response.ok) throw new Error(`Failed to fetch image: ${response.statusText}`);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch image: ${response.statusText}`);
+    }
 
     const arrayBuffer = await response.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
     const processedBuffer = await sharp(buffer)
-      .resize({ width: 800 }) // Resize
-     // .flatten({ background: { r: 255, g: 255, b: 255 } }) // Force white background
-      .grayscale() // Convert to grayscale
-      .convolve({ // Apply edge detection
+      .resize({ width: 800 })
+      .flatten({ background: { r: 255, g: 255, b: 255 } }) // ✅ white background
+      .grayscale()
+      .convolve({
         width: 3,
         height: 3,
         kernel: [
@@ -70,7 +70,6 @@ app.post('/process-image', async (req: Request, res: Response) => {
           -1, -1, -1
         ]
       })
-      .negate({ alpha: false }) // Invert grayscale colors to get black outline on white
       .png()
       .toBuffer();
 
