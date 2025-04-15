@@ -1,13 +1,11 @@
 import express from 'express';
 import type { Request, Response } from 'express';
-import cors from 'cors';
+import cors, { type CorsOptionsDelegate } from 'cors';
 import dotenv from 'dotenv';
 import { createClient } from '@supabase/supabase-js';
 import sharp from 'sharp';
 import fetch from 'node-fetch';
 import { Potrace } from 'potrace';
-
-
 
 dotenv.config();
 
@@ -16,17 +14,20 @@ const port = process.env.PORT || 8000;
 
 const allowedOrigins = [
   'http://localhost:5173',
-  'https://your-production-app.com'
+  'https://your-production-app.com' // Replace with actual domain
 ];
 
+// Fix: typed CORS options delegate
+const corsOptions: CorsOptionsDelegate = (origin, callback) => {
+  if (!origin || allowedOrigins.includes(origin)) {
+    callback(null, true);
+  } else {
+    callback(new Error('Not allowed by CORS'), false);
+  }
+};
+
 app.use(cors({
-  origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
+  origin: corsOptions,
   credentials: true,
   methods: ['GET', 'POST', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
@@ -39,7 +40,6 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-// Health check
 app.get('/', (_req: Request, res: Response) => {
   res.status(200).json({
     status: 'healthy',
@@ -131,7 +131,6 @@ app.post('/process-image', async (req: Request, res: Response) => {
   }
 });
 
-// Global uncaught error handler
 process.on('uncaughtException', (err) => {
   console.error('Uncaught Exception:', err);
 });
