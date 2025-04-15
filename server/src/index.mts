@@ -67,35 +67,34 @@ app.post('/process-image', async (req: Request, res: Response): Promise<void> =>
       const preProcessed = await sharp(buffer)
         .resize({ width: 800 })
         .grayscale()
-        .convolve({
-          width: 3,
-          height: 3,
-          kernel: [
-            -1, -1, -1,
-            -1, 8, -1,
-            -1, -1, -1
-          ]
-        })
+        .normalize()
+        .modulate({ brightness: 1.1, contrast: 1.2 })
+        .threshold(128)
         .flatten({ background: { r: 255, g: 255, b: 255 } })
-        .negate()
         .sharpen()
         .png()
         .toBuffer();
-
-      const tracer = new Potrace({ threshold: 128 });
-
+    
+      const tracer = new Potrace({
+        threshold: 128,
+        turdSize: 50,
+        optCurve: true,
+        color: 'black',
+        background: 'white'
+      });
+    
       tracer.loadImage(preProcessed, (err: Error | null, svgData: string) => {
         if (err) {
           console.error('SVG conversion error:', err);
-          res.status(500).json({ error: 'SVG conversion failed' });
-          return;
+          return res.status(500).json({ error: 'SVG conversion failed' });
         }
-
+    
         res.setHeader('Content-Type', 'image/svg+xml');
         res.setHeader('Content-Disposition', 'inline; filename=processed.svg');
         res.setHeader('Content-Length', Buffer.byteLength(svgData));
         res.send(svgData);
       });
+        
     } else {
       const pipeline = sharp(buffer)
         .resize({ width: 800 })
