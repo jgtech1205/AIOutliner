@@ -85,12 +85,13 @@ app.post('/process-image', async (req: Request, res: Response) => {
         mimeType = 'image/svg+xml';
         filename = 'processed.svg';
 
-        const svg = await new Promise<string>((resolve, reject) => {
-          new Potrace().loadImage(buffer, (err, svgData) => {
-            if (err) reject(err);
-            else resolve(svgData);
-          });
-        });
+
+const svg = await new Promise<string>((resolve, reject) => {
+  new Potrace().loadImage(buffer, (err: Error | null, svgData: string) => {
+    if (err) return reject(err);
+    resolve(svgData);
+  });
+});
 
         outputBuffer = Buffer.from(svg);
         break;
