@@ -5,7 +5,7 @@
   "type": "module",
   "main": "dist/index.mjs",
   "scripts": {
-"dev": "ts-node-dev --respawn --transpile-only src/index.mts",
+    "dev": "ts-node-dev --respawn --transpile-only src/index.mts",
     "build": "tsc",
     "start": "node dist/index.mjs"
   },
