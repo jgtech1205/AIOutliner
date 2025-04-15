@@ -65,46 +65,25 @@ app.post('/process-image', async (req: Request, res: Response) => {
     const arrayBuffer = await response.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    // Process image using sharp and extract raw pixel data
-    const { data, info } = await sharp(buffer)
-      .resize({ width: 800 }) // Optional resizing
-      .grayscale()
-      .convolve({
-        width: 3,
-        height: 3,
-        kernel: [
-          -1, -1, -1,
-          -1,  8, -1,
-          -1, -1, -1
-        ]
-      })
-      .raw()
-      .toBuffer({ resolveWithObject: true });
+    // Process with Sharp (grayscale + edge detection)
+    const processedBuffer = await sharp(Buffer.from(arrayBuffer))
+  .resize({ width: 800 }) // Optional resizing
+  .flatten({ background: { r: 255, g: 255, b: 255 } }) // Ensure white background
+  .grayscale()
+  .convolve({
+    width: 3,
+    height: 3,
+    kernel: [
+      -1, -1, -1,
+      -1,  8, -1,
+      -1, -1, -1
+    ]
+  })
+  .negate() // Invert the colors: white -> black, black -> white
+  .png()
+  .toBuffer();
 
-    const { width, height } = info;
 
-    // Create an RGBA buffer for the edge image
-    const edgeImage = Buffer.alloc(width * height * 4);
-    for (let i = 0; i < data.length; i++) {
-      const value = data[i];
-      edgeImage[i * 4] = value;     // R
-      edgeImage[i * 4 + 1] = value; // G
-      edgeImage[i * 4 + 2] = value; // B
-      edgeImage[i * 4 + 3] = 255;   // A (opaque)
-    }
-
-    // Create a white background image and composite the edge image on top
-    const whiteBackground = Buffer.alloc(width * height * 3, 255);
-    const processedBuffer = await sharp(whiteBackground, { raw: { width, height, channels: 3 } })
-      .composite([
-        {
-          input: edgeImage,
-          raw: { width, height, channels: 4 },
-          blend: 'over'
-        }
-      ])
-      .png()
-      .toBuffer();
 
     // Respond with image file
     res.setHeader('Content-Type', 'image/png');
