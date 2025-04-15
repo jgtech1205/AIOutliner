@@ -5,9 +5,9 @@ import dotenv from 'dotenv';
 import { createClient } from '@supabase/supabase-js';
 import sharp from 'sharp';
 import fetch from 'node-fetch';
-import * as potrace from 'potrace';
+import { Potrace } from 'potrace';
 
-const { Potrace } = potrace;
+
 
 dotenv.config();
 
