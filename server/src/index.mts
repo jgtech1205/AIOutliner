@@ -58,21 +58,22 @@ app.post('/process-image', async (req: Request, res: Response) => {
     const buffer = Buffer.from(arrayBuffer);
 
     const processedBuffer = await sharp(buffer)
-      .resize({ width: 800 }) // Resize
-     // .flatten({ background: { r: 255, g: 255, b: 255 } }) // Force white background
-      .grayscale() // Convert to grayscale
-      .convolve({ // Apply edge detection
-        width: 3,
-        height: 3,
-        kernel: [
-          -1, -1, -1,
-          -1, 8, -1,
-          -1, -1, -1
-        ]
-      })
-      .negate({ alpha: false }) // Invert grayscale colors to get black outline on white
-      .png()
-      .toBuffer();
+    .resize({ width: 800 })
+    .flatten({ background: { r: 255, g: 255, b: 255 } })
+    .grayscale()
+    .convolve({
+      width: 3,
+      height: 3,
+      kernel: [
+        -1, -1, -1,
+        -1,  9, -1,
+        -1, -1, -1
+      ]
+    })
+    .linear(2.5, -128) // sharpen black edges
+    .png()
+    .toBuffer();
+  
 
     res.setHeader('Content-Type', 'image/png');
     res.setHeader('Content-Disposition', 'inline; filename=processed.png');
