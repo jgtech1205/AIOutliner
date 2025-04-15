@@ -59,7 +59,7 @@ app.post('/process-image', async (req: Request, res: Response) => {
 
     const processedBuffer = await sharp(buffer)
       .resize({ width: 800 }) // Resize
-      .flatten({ background: { r: 255, g: 255, b: 255 } }) // Force white background
+     // .flatten({ background: { r: 255, g: 255, b: 255 } }) // Force white background
       .grayscale() // Convert to grayscale
       .convolve({ // Apply edge detection
         width: 3,
