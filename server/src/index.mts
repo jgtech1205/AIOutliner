@@ -65,7 +65,7 @@ app.post('/process-image', async (req: Request, res: Response) => {
     const arrayBuffer = await response.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    // Process with Sharp (grayscale + edge detection)
+    // Process with Sharp
     const processedBuffer = await sharp(buffer)
       .resize({ width: 800 }) // Optional resizing
       .grayscale()
