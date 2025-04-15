@@ -66,28 +66,27 @@ app.post('/process-image', async (req: Request, res: Response) => {
 
     // Process with Sharp (grayscale + edge detection)
     const processedBuffer = await sharp(Buffer.from(arrayBuffer))
-  .resize({ width: 800 }) // Optional resizing
-  .flatten({ background: { r: 255, g: 255, b: 255 } }) // Ensure white background
-  .grayscale()
-  .convolve({
-    width: 3,
-    height: 3,
-    kernel: [
-      -1, -1, -1,
-      -1,  8, -1,
-      -1, -1, -1
-    ]
-  })
-  //.negate() // Invert the colors: white -> black, black -> white
-  .png()
-  .toBuffer();
+      .grayscale()
+      .convolve({
+        width: 3,
+        height: 3,
+        kernel: [
+          -1, -1, -1,
+          -1, 8, -1,
+          -1, -1, -1
+        ]
+      })
+      .png()
+      .toBuffer();
 
+    // Convert to base64
+    const base64 = processedBuffer.toString('base64');
+    const base64DataUri = `data:image/png;base64,${base64}`;
 
-
-    // Respond with image file
-    res.setHeader('Content-Type', 'image/png');
-    res.setHeader('Content-Disposition', 'inline; filename=processed.png');
-    res.send(processedBuffer);
+    res.status(200).json({
+      message: 'Image processed successfully',
+      base64_image: base64DataUri
+    });
 
   } catch (error: any) {
     console.error('Processing Error:', error);
@@ -102,3 +101,4 @@ app.listen(port, () => {
   console.log(`🚀 Server is running on port ${port}`);
   console.log(`🌐 CORS enabled for: ${allowedOrigins.join(', ')}`);
 });
+
