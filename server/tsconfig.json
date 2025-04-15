@@ -2,7 +2,7 @@
   "compilerOptions": {
     "target": "ES2022",
     "module": "ESNext",
-    "moduleResolution": "Bundler",         
+    "moduleResolution": "Bundler",
     "outDir": "dist",
     "rootDir": "src",
     "esModuleInterop": true,
@@ -10,5 +10,5 @@
     "skipLibCheck": true,
     "strict": true
   },
-"include": ["src", "potrace.d.ts"]
+  "include": ["src"]
 }

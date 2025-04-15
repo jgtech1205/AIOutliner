@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import { createClient } from '@supabase/supabase-js';
 import sharp from 'sharp';
 import fetch from 'node-fetch';
+import { Potrace } from 'potrace'; // SVG conversion
 
 dotenv.config();
 
@@ -12,7 +13,7 @@ const port = process.env.PORT || 8000;
 
 const allowedOrigins = [
   'http://localhost:5173',
-  'https://your-production-app.com' // Replace with real domain
+  'https://your-production-app.com'
 ];
 
 app.use(cors({
@@ -44,7 +45,8 @@ app.get('/', (req: Request, res: Response) => {
 
 app.post('/process-image', async (req: Request, res: Response) => {
   try {
-    const { image_path } = req.body;
+    const { image_path, format = 'png' } = req.body;
+
     if (!image_path) {
       return res.status(400).json({ error: 'image_path is required' });
     }
@@ -57,27 +59,61 @@ app.post('/process-image', async (req: Request, res: Response) => {
     const arrayBuffer = await response.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    const processedBuffer = await sharp(buffer)
-      .resize({ width: 800 })
-      .grayscale()
-      .convolve({
-        width: 3,
-        height: 3,
-        kernel: [
-          -1, -1, -1,
-          -1,  8, -1,
-          -1, -1, -1
-        ]
-      })
-      .flatten({ background: { r: 255, g: 255, b: 255 } })
-      .negate()
-      .sharpen()
-      .png()
-      .toBuffer();
+    if (format === 'svg') {
+      const preProcessed = await sharp(buffer)
+        .resize({ width: 800 })
+        .grayscale()
+        .convolve({
+          width: 3,
+          height: 3,
+          kernel: [
+            -1, -1, -1,
+            -1, 8, -1,
+            -1, -1, -1
+          ]
+        })
+        .flatten({ background: { r: 255, g: 255, b: 255 } })
+        .negate()
+        .sharpen()
+        .toFormat('png')
+        .toBuffer();
 
-    res.setHeader('Content-Type', 'image/png');
-    res.setHeader('Content-Disposition', 'inline; filename=processed.png');
-    res.send(processedBuffer);
+      const tracer = new Potrace({ threshold: 128 });
+
+      tracer.loadImage(preProcessed, (err, svgData) => {
+        if (err) {
+          console.error('SVG conversion error:', err);
+          return res.status(500).json({ error: 'SVG conversion failed' });
+        }
+
+        res.setHeader('Content-Type', 'image/svg+xml');
+        res.setHeader('Content-Disposition', 'inline; filename=processed.svg');
+        res.send(svgData);
+      });
+
+    } else {
+      const pipeline = sharp(buffer)
+        .resize({ width: 800 })
+        .grayscale()
+        .convolve({
+          width: 3,
+          height: 3,
+          kernel: [
+            -1, -1, -1,
+            -1, 8, -1,
+            -1, -1, -1
+          ]
+        })
+        .flatten({ background: { r: 255, g: 255, b: 255 } })
+        .negate()
+        .sharpen();
+
+      const outputBuffer = await (format === 'jpeg' ? pipeline.jpeg() : pipeline.png()).toBuffer();
+
+      res.setHeader('Content-Type', `image/${format}`);
+      res.setHeader('Content-Disposition', `inline; filename=processed.${format}`);
+      res.send(outputBuffer);
+    }
 
   } catch (error: any) {
     console.error('Processing Error:', error);
@@ -90,13 +126,4 @@ app.post('/process-image', async (req: Request, res: Response) => {
 app.listen(port, () => {
   console.log(`🚀 Server is running on port ${port}`);
   console.log(`🌐 CORS enabled for: ${allowedOrigins.join(', ')}`);
-});
-
-// ✅ Optional: Catch uncaught exceptions and unhandled rejections
-process.on('uncaughtException', (err) => {
-  console.error('Uncaught Exception:', err);
-});
-
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
 });
