@@ -1,6 +1,6 @@
 import express from 'express';
 import type { Request, Response } from 'express';
-import cors, { type CorsOptionsDelegate } from 'cors';
+import cors, { CorsOptions } from 'cors';
 import dotenv from 'dotenv';
 import { createClient } from '@supabase/supabase-js';
 import sharp from 'sharp';
@@ -14,25 +14,23 @@ const port = process.env.PORT || 8000;
 
 const allowedOrigins = [
   'http://localhost:5173',
-  'https://your-production-app.com' // Replace with actual domain
+  'https://your-production-app.com'
 ];
 
-// Fix: typed CORS options delegate
-const corsOptions: CorsOptionsDelegate = (origin, callback) => {
-  if (!origin || allowedOrigins.includes(origin)) {
-    callback(null, true);
-  } else {
-    callback(new Error('Not allowed by CORS'), false);
-  }
-};
-
-app.use(cors({
-  origin: corsOptions,
+const corsOptions: CorsOptions = {
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
-}));
+};
 
+app.use(cors(corsOptions));
 app.use(express.json({ limit: '10mb' }));
 
 const supabase = createClient(
@@ -40,6 +38,7 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
+// Health check
 app.get('/', (_req: Request, res: Response) => {
   res.status(200).json({
     status: 'healthy',
@@ -47,6 +46,7 @@ app.get('/', (_req: Request, res: Response) => {
   });
 });
 
+// Process image
 app.post('/process-image', async (req: Request, res: Response) => {
   try {
     const { image_path, format = 'png' } = req.body;
@@ -131,6 +131,7 @@ app.post('/process-image', async (req: Request, res: Response) => {
   }
 });
 
+// Catch uncaught errors
 process.on('uncaughtException', (err) => {
   console.error('Uncaught Exception:', err);
 });
