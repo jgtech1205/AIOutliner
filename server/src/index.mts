@@ -78,7 +78,7 @@ app.post('/process-image', async (req: Request, res: Response) => {
       -1, -1, -1
     ]
   })
-  .negate() // Invert the colors: white -> black, black -> white
+  //.negate() // Invert the colors: white -> black, black -> white
   .png()
   .toBuffer();
 
