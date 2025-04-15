@@ -65,8 +65,8 @@ app.post('/process-image', async (req: Request, res: Response) => {
     const arrayBuffer = await response.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    // Process with Sharp
-    const processedBuffer = await sharp(buffer)
+    // Process image using sharp and extract raw pixel data
+    const { data, info } = await sharp(buffer)
       .resize({ width: 800 }) // Optional resizing
       .grayscale()
       .convolve({
@@ -74,35 +74,37 @@ app.post('/process-image', async (req: Request, res: Response) => {
         height: 3,
         kernel: [
           -1, -1, -1,
-          -1, 8, -1,
+          -1,  8, -1,
           -1, -1, -1
         ]
       })
-      .raw() // Get raw pixel data
-      .toBuffer({ resolveWithObject: true })
-      .then(({ data, info }) => {
-        const { width, height } = info;
+      .raw()
+      .toBuffer({ resolveWithObject: true });
 
-        // Create a new image with a white background
-        const whiteBackground = Buffer.alloc(width * height * 3, 255); // White background
+    const { width, height } = info;
 
-        // Create a new image with edges
-        const edgeImage = Buffer.alloc(width * height * 4); // RGBA
+    // Create an RGBA buffer for the edge image
+    const edgeImage = Buffer.alloc(width * height * 4);
+    for (let i = 0; i < data.length; i++) {
+      const value = data[i];
+      edgeImage[i * 4] = value;     // R
+      edgeImage[i * 4 + 1] = value; // G
+      edgeImage[i * 4 + 2] = value; // B
+      edgeImage[i * 4 + 3] = 255;   // A (opaque)
+    }
 
-        for (let i = 0; i < data.length; i++) {
-          const value = data[i];
-          edgeImage[i * 4] = value;     // R
-          edgeImage[i * 4 + 1] = value; // G
-          edgeImage[i * 4 + 2] = value; // B
-          edgeImage[i * 4 + 3] = 255;   // A
+    // Create a white background image and composite the edge image on top
+    const whiteBackground = Buffer.alloc(width * height * 3, 255);
+    const processedBuffer = await sharp(whiteBackground, { raw: { width, height, channels: 3 } })
+      .composite([
+        {
+          input: edgeImage,
+          raw: { width, height, channels: 4 },
+          blend: 'over'
         }
-
-        // Combine the white background and edge image
-        return sharp(whiteBackground, { raw: { width, height, channels: 3 } })
-          .composite([{ input: edgeImage, blend: 'over' }])
-          .png()
-          .toBuffer();
-      });
+      ])
+      .png()
+      .toBuffer();
 
     // Respond with image file
     res.setHeader('Content-Type', 'image/png');
