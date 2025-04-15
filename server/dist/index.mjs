@@ -4,7 +4,8 @@ import dotenv from 'dotenv';
 import { createClient } from '@supabase/supabase-js';
 import sharp from 'sharp';
 import fetch from 'node-fetch';
-import { Potrace } from 'potrace'; // npm install potrace
+import potrace from 'potrace';
+const { Potrace } = potrace;
 dotenv.config();
 const app = express();
 const port = process.env.PORT || 8000;
@@ -27,8 +28,12 @@ app.use(cors({
 }));
 app.use(express.json({ limit: '10mb' }));
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
-app.get('/', (req, res) => {
-    res.status(200).json({ status: 'healthy', timestamp: new Date().toISOString() });
+// Health check
+app.get('/', (_req, res) => {
+    res.status(200).json({
+        status: 'healthy',
+        timestamp: new Date().toISOString()
+    });
 });
 app.post('/process-image', async (req, res) => {
     try {
@@ -40,60 +45,71 @@ app.post('/process-image', async (req, res) => {
         if (!response.ok) {
             throw new Error(`Failed to fetch image: ${response.statusText}`);
         }
-        const buffer = Buffer.from(await response.arrayBuffer());
-        let mimeType = '';
-        let filename = '';
-        let outputBuffer;
-        const sharpPipeline = sharp(buffer)
-            .resize({ width: 800 })
-            .grayscale()
-            .convolve({
-            width: 3,
-            height: 3,
-            kernel: [-1, -1, -1, -1, 8, -1, -1, -1, -1]
-        })
-            .flatten({ background: { r: 255, g: 255, b: 255 } }) // white background
-            .negate()
-            .sharpen();
-        switch (format) {
-            case 'png':
-                mimeType = 'image/png';
-                filename = 'processed.png';
-                outputBuffer = await sharpPipeline.png().toBuffer();
-                break;
-            case 'jpeg':
-                mimeType = 'image/jpeg';
-                filename = 'processed.jpeg';
-                outputBuffer = await sharpPipeline.jpeg().toBuffer();
-                break;
-            case 'svg':
-                mimeType = 'image/svg+xml';
-                filename = 'processed.svg';
-                const svg = await new Promise((resolve, reject) => {
-                    new Potrace().loadImage(buffer, (err, svgData) => {
-                        if (err)
-                            return reject(err);
-                        resolve(svgData);
-                    });
-                });
-                outputBuffer = Buffer.from(svg);
-                break;
-            case 'dst':
-                mimeType = 'application/octet-stream';
-                filename = 'processed.dst';
-                outputBuffer = Buffer.from('DST conversion not implemented yet.', 'utf-8');
-                break;
-            default:
-                throw new Error('Unsupported format requested');
+        const arrayBuffer = await response.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+        if (format === 'svg') {
+            const preProcessed = await sharp(buffer)
+                .resize({ width: 800 })
+                .grayscale()
+                .convolve({
+                width: 3,
+                height: 3,
+                kernel: [
+                    -1, -1, -1,
+                    -1, 8, -1,
+                    -1, -1, -1
+                ]
+            })
+                .flatten({ background: { r: 255, g: 255, b: 255 } })
+                .negate()
+                .sharpen()
+                .png()
+                .toBuffer();
+            const tracer = new Potrace({ threshold: 128 });
+            tracer.loadImage(preProcessed, (err, svgData) => {
+                if (err) {
+                    console.error('SVG conversion error:', err);
+                    return res.status(500).json({ error: 'SVG conversion failed' });
+                }
+                res.setHeader('Content-Type', 'image/svg+xml');
+                res.setHeader('Content-Disposition', 'inline; filename=processed.svg');
+                res.setHeader('Content-Length', Buffer.byteLength(svgData));
+                res.send(svgData);
+            });
         }
-        res.setHeader('Content-Type', mimeType);
-        res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
-        res.send(outputBuffer);
+        else {
+            const pipeline = sharp(buffer)
+                .resize({ width: 800 })
+                .grayscale()
+                .convolve({
+                width: 3,
+                height: 3,
+                kernel: [
+                    -1, -1, -1,
+                    -1, 8, -1,
+                    -1, -1, -1
+                ]
+            })
+                .flatten({ background: { r: 255, g: 255, b: 255 } })
+                .negate()
+                .sharpen();
+            const outputBuffer = await (format === 'jpeg' ? pipeline.jpeg() : pipeline.png()).toBuffer();
+            res.setHeader('Content-Type', `image/${format}`);
+            res.setHeader('Content-Disposition', `inline; filename=processed.${format}`);
+            res.setHeader('Content-Length', outputBuffer.length);
+            res.send(outputBuffer);
+        }
     }
     catch (error) {
         console.error('Processing Error:', error);
-        res.status(500).json({ error: error.message || 'Image processing failed' });
+        res.status(500).json({
+            error: error.message || 'Image processing failed'
+        });
     }
+});
+// Global uncaught error handler
+process.on('uncaughtException', (err) => {
+    console.error('Uncaught Exception:', err);
 });
 app.listen(port, () => {
     console.log(`🚀 Server is running on port ${port}`);
