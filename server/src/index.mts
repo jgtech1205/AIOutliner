@@ -1,5 +1,5 @@
 import express from 'express';
-import type { Request, Response } from 'express';
+import type { Request, Response, RequestHandler } from 'express';
 import cors, { CorsOptions } from 'cors';
 import dotenv from 'dotenv';
 import { createClient } from '@supabase/supabase-js';
@@ -18,7 +18,7 @@ const allowedOrigins = [
 ];
 
 const corsOptions: CorsOptions = {
-  origin: (origin, callback) => {
+  origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
@@ -38,7 +38,6 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-// Health check
 app.get('/', (_req: Request, res: Response) => {
   res.status(200).json({
     status: 'healthy',
@@ -46,14 +45,15 @@ app.get('/', (_req: Request, res: Response) => {
   });
 });
 
-// Process image
-app.post('/process-image', async (req: Request, res: Response) => {
+const processImageHandler = async (req: Request, res: Response): Promise<void> => {
   try {
     const { image_path, format = 'png' } = req.body;
 
     if (!image_path) {
-      return res.status(400).json({ error: 'image_path is required' });
+      res.status(400).json({ error: 'image_path is required' });
+      return;
     }
+    
 
     const response = await fetch(image_path);
     if (!response.ok) {
@@ -129,9 +129,10 @@ app.post('/process-image', async (req: Request, res: Response) => {
       error: error.message || 'Image processing failed'
     });
   }
-});
+};
 
-// Catch uncaught errors
+app.post('/process-image', processImageHandler);
+
 process.on('uncaughtException', (err) => {
   console.error('Uncaught Exception:', err);
 });
