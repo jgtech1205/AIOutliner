@@ -1,7 +1,7 @@
 {
   "name": "image-processor-backend",
   "version": "1.0.0",
-  "type": "module",               
+  "type": "module",
   "main": "dist/index.js",
   "scripts": {
     "dev": "ts-node-esm src/index.mts",
@@ -18,6 +18,8 @@
     "sharp": "^0.33.1"
   },
   "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.1",
     "ts-node": "^10.9.2",
     "typescript": "^5.0.0"
   }
