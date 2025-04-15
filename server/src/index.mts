@@ -1,4 +1,5 @@
-import express, { type Request, type Response } from 'express';
+import express from 'express';
+import type { Request, Response } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { createClient } from '@supabase/supabase-js';
@@ -16,8 +17,8 @@ const allowedOrigins = [
   'https://your-production-app.com'
 ];
 
-const corsOptions = {
-  origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+app.use(cors({
+  origin: (origin, callback) => {
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
@@ -27,9 +28,8 @@ const corsOptions = {
   credentials: true,
   methods: ['GET', 'POST', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
-};
+}));
 
-app.use(cors(corsOptions));
 app.use(express.json({ limit: '10mb' }));
 
 const supabase = createClient(
@@ -45,7 +45,7 @@ app.get('/', (_req: Request, res: Response) => {
   });
 });
 
-// Image processing route
+// Image processing endpoint
 app.post('/process-image', async (req: Request, res: Response): Promise<void> => {
   try {
     const { image_path, format = 'png' } = req.body;
@@ -65,37 +65,26 @@ app.post('/process-image', async (req: Request, res: Response): Promise<void> =>
 
     if (format === 'svg') {
       const preProcessed = await sharp(buffer)
-  .resize({ width: 800 })
-  .grayscale()
-  .normalize() // boost contrast automatically
-  .modulate({ brightness: 1.1 }) // ONLY brightness allowed here
-  .threshold(128) // clear black & white split
-  .flatten({ background: { r: 255, g: 255, b: 255 } })
-  .sharpen()
-  .png()
-  .toBuffer();
+        .resize({ width: 800 })
+        .grayscale()
+        .linear(3.0, -128)   // Enhance contrast
+        .threshold(100)      // Force binary shapes
+        .png()
+        .toBuffer();
 
-    
-      const tracer = new Potrace({
-        threshold: 128,
-        turdSize: 50,
-        optCurve: true,
-        color: 'black',
-        background: 'white'
-      });
-    
+      const tracer = new Potrace({ threshold: 128 });
+
       tracer.loadImage(preProcessed, (err: Error | null, svgData: string) => {
         if (err) {
           console.error('SVG conversion error:', err);
           return res.status(500).json({ error: 'SVG conversion failed' });
         }
-    
+
         res.setHeader('Content-Type', 'image/svg+xml');
         res.setHeader('Content-Disposition', 'inline; filename=processed.svg');
         res.setHeader('Content-Length', Buffer.byteLength(svgData));
         res.send(svgData);
       });
-        
     } else {
       const pipeline = sharp(buffer)
         .resize({ width: 800 })
@@ -122,6 +111,7 @@ app.post('/process-image', async (req: Request, res: Response): Promise<void> =>
       res.setHeader('Content-Length', outputBuffer.length);
       res.send(outputBuffer);
     }
+
   } catch (error: any) {
     console.error('Processing Error:', error);
     res.status(500).json({
@@ -130,12 +120,10 @@ app.post('/process-image', async (req: Request, res: Response): Promise<void> =>
   }
 });
 
-// Uncaught error listener
 process.on('uncaughtException', (err) => {
   console.error('Uncaught Exception:', err);
 });
 
-// Start server
 app.listen(port, () => {
   console.log(`🚀 Server is running on port ${port}`);
   console.log(`🌐 CORS enabled for: ${allowedOrigins.join(', ')}`);
