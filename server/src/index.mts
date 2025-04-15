@@ -64,22 +64,23 @@ app.post('/process-image', async (req: Request, res: Response) => {
 
     // Sharp pipeline: white background + edge detect + invert
     const processedBuffer = await sharp(buffer)
-      .resize({ width: 800 }) // optional resize
-      .grayscale()
-      .convolve({
-        width: 3,
-        height: 3,
-        kernel: [
-          -1, -1, -1,
-          -1,  8, -1,
-          -1, -1, -1
-        ]
-      })
-      .flatten({ background: { r: 255, g: 255, b: 255 } }) // force white background
-      .negate() // invert: white → black, black → white
-      .modulate({ brightness: 1, contrast: 1.2 }) // sharpen edges slightly
-      .png()
-      .toBuffer();
+  .resize({ width: 800 }) // optional resize
+  .grayscale()
+  .convolve({
+    width: 3,
+    height: 3,
+    kernel: [
+      -1, -1, -1,
+      -1,  8, -1,
+      -1, -1, -1
+    ]
+  })
+  .flatten({ background: { r: 255, g: 255, b: 255 } }) // white background
+  .negate() // invert edges: white → black, black → white
+  .sharpen() // sharpens the outlines
+  .png()
+  .toBuffer();
+
 
     // Send processed image
     res.setHeader('Content-Type', 'image/png');
