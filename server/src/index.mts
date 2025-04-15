@@ -64,9 +64,10 @@ app.post('/process-image', async (req: Request, res: Response) => {
 
     const arrayBuffer = await response.arrayBuffer();
 
-    // Process with Sharp (grayscale + edge detection)
+    // Process with Sharp (add white background, grayscale + edge detection)
     const processedBuffer = await sharp(Buffer.from(arrayBuffer))
-      .grayscale()
+      .resize({ width: 800 }) // Resize if needed
+      .grayscale() // Convert to grayscale
       .convolve({
         width: 3,
         height: 3,
@@ -76,17 +77,37 @@ app.post('/process-image', async (req: Request, res: Response) => {
           -1, -1, -1
         ]
       })
-      .png()
-      .toBuffer();
+      .toFormat('png') // Ensure the output format is PNG
+      .raw() // Get raw pixel data
+      .toBuffer({ resolveWithObject: true })
+      .then(({ data, info }) => {
+        const { width, height } = info;
 
-    // Convert to base64
-    const base64 = processedBuffer.toString('base64');
-    const base64DataUri = `data:image/png;base64,${base64}`;
+        // Create a new image with a white background
+        const whiteBackground = Buffer.alloc(width * height * 3, 255); // White background
 
-    res.status(200).json({
-      message: 'Image processed successfully',
-      base64_image: base64DataUri
-    });
+        // Create a new image with edges
+        const edgeImage = Buffer.alloc(width * height * 4); // RGBA
+
+        for (let i = 0; i < data.length; i++) {
+          const value = data[i];
+          edgeImage[i * 4] = value;     // R
+          edgeImage[i * 4 + 1] = value; // G
+          edgeImage[i * 4 + 2] = value; // B
+          edgeImage[i * 4 + 3] = 255;   // A
+        }
+
+        // Combine the white background and edge image
+        return sharp(whiteBackground, { raw: { width, height, channels: 3 } })
+          .composite([{ input: edgeImage, blend: 'over' }])
+          .png()
+          .toBuffer();
+      });
+
+    // Respond with image file
+    res.setHeader('Content-Type', 'image/png');
+    res.setHeader('Content-Disposition', 'inline; filename=processed.png');
+    res.send(processedBuffer);
 
   } catch (error: any) {
     console.error('Processing Error:', error);
