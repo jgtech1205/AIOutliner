@@ -73,7 +73,7 @@ app.post('/process-image', async (req: Request, res: Response): Promise<void> =>
         .toBuffer();
     
       const tracer = new Potrace({
-        threshold: Potrace.THRESHOLD_AUTO, // or set fixed: 128
+        threshold: 128,
         turdSize: 50,       // removes tiny specks
         optTolerance: 0.4,  // simplify curves (0–1)
         color: 'black',
