@@ -10,7 +10,7 @@ import { Potrace } from 'potrace';
 dotenv.config();
 
 const app = express();
-const port = Number(process.env.PORT) || 8000;
+const port = Number(process.env.PORT) || 8000; // ✅ Fixed: cast PORT to number
 
 const allowedOrigins = [
   'http://localhost:5173',
@@ -71,7 +71,7 @@ app.post('/process-image', async (req: Request, res: Response): Promise<void> =>
         .threshold(120)
         .toFormat('png')
         .toBuffer();
-    
+
       const tracer = new Potrace({
         threshold: 128,
         turdSize: 50,
@@ -79,13 +79,13 @@ app.post('/process-image', async (req: Request, res: Response): Promise<void> =>
         color: 'black',
         background: 'white'
       });
-    
+
       tracer.loadImage(preProcessed, (err: Error | null, svgData: string) => {
         if (err) {
           console.error('SVG conversion error:', err);
           return res.status(500).json({ error: 'SVG conversion failed' });
         }
-    
+
         res.setHeader('Content-Type', 'image/svg+xml');
         res.setHeader('Content-Disposition', 'inline; filename=processed.svg');
         res.setHeader('Content-Length', Buffer.byteLength(svgData));
