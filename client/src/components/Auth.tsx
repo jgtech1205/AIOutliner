@@ -16,7 +16,7 @@ export function Auth({ mode, onModeChange }: AuthProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (mode === 'signup' && !termsAccepted) {
       toast.error('Please accept the Terms and Privacy Policy');
       return;
@@ -49,8 +49,12 @@ export function Auth({ mode, onModeChange }: AuthProps) {
         if (error) throw error;
         toast.success('Password reset instructions sent to your email!');
       }
-    } catch (error) {
-      toast.error(error.message);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        toast.error(error.message);
+      } else {
+        toast.error('An unknown error occurred.');
+      }
     } finally {
       setLoading(false);
     }
@@ -71,9 +75,7 @@ export function Auth({ mode, onModeChange }: AuthProps) {
 
       {mode !== 'forgot' && (
         <div>
-          <label className="block text-sm font-medium text-gray-700">
-            Password
-          </label>
+          <label className="block text-sm font-medium text-gray-700">Password</label>
           <input
             type="password"
             required
