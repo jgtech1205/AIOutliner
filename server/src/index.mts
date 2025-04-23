@@ -10,7 +10,7 @@ import { Potrace } from 'potrace';
 dotenv.config();
 
 const app = express();
-const port = process.env.PORT || 8000;
+const port = Number(process.env.PORT) || 8000;
 
 const allowedOrigins = [
   'http://localhost:5173',
@@ -67,15 +67,15 @@ app.post('/process-image', async (req: Request, res: Response): Promise<void> =>
       const preProcessed = await sharp(buffer)
         .resize({ width: 800 })
         .grayscale()
-        .normalize()              // enhance global contrast
-        .threshold(120)           // binarize image (0-255)
-        .toFormat('png')          // required input format for potrace
+        .normalize()
+        .threshold(120)
+        .toFormat('png')
         .toBuffer();
     
       const tracer = new Potrace({
         threshold: 128,
-        turdSize: 50,       // removes tiny specks
-        optTolerance: 0.4,  // simplify curves (0–1)
+        turdSize: 50,
+        optTolerance: 0.4,
         color: 'black',
         background: 'white'
       });
@@ -91,7 +91,7 @@ app.post('/process-image', async (req: Request, res: Response): Promise<void> =>
         res.setHeader('Content-Length', Buffer.byteLength(svgData));
         res.send(svgData);
       });
-      
+
     } else {
       const pipeline = sharp(buffer)
         .resize({ width: 800 })
