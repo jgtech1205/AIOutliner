@@ -91,7 +91,9 @@ const ImageUpload = () => {
         .from('uploads')
         .getPublicUrl(uploadData.path);
 
-      const response = await fetch('http://localhost:8000/process-image', {
+      const apiUrl = import.meta.env.VITE_API_URL;
+
+      const response = await fetch(`${apiUrl}/process-image`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
