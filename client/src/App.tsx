@@ -1,20 +1,23 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Toaster } from 'react-hot-toast';
-import { LogIn, UserPlus, KeyRound, Image as ImageIcon } from 'lucide-react';
+import { LogIn, UserPlus, Image as ImageIcon } from 'lucide-react';
 import { Auth } from './components/Auth';
-import ImageUpload from './components/ImageUpload';  // Fixed import (no braces)
+import ImageUpload from './components/ImageUpload';
 import { supabase } from './lib/supabase';
+import type { Session } from '@supabase/supabase-js';
 
 function App() {
   const [authMode, setAuthMode] = useState<'login' | 'signup' | 'forgot'>('login');
-  const [session, setSession] = useState(null);
+  const [session, setSession] = useState<Session | null>(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
     });
 

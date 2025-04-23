@@ -21,6 +21,7 @@ const ImageUpload = () => {
   });
 
   const [session, setSession] = useState<any>(null);
+  const [format, setFormat] = useState<'png' | 'jpeg' | 'svg'>('png');
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -69,7 +70,7 @@ const ImageUpload = () => {
       return;
     }
 
-    const cleanName = state.file.name.replaceAll(' ', '-');
+    const cleanName = state.file.name.replace(/ /g, '-');
     const filePath = `${session.user.id}/${Date.now()}-${cleanName}`;
 
     try {
@@ -96,7 +97,7 @@ const ImageUpload = () => {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`
         },
-        body: JSON.stringify({ image_path: `${publicUrl}?t=${Date.now()}` })
+        body: JSON.stringify({ image_path: `${publicUrl}?t=${Date.now()}`, format })
       });
 
       if (!response.ok) {
@@ -140,7 +141,7 @@ const ImageUpload = () => {
     const url = URL.createObjectURL(state.processedBlob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = 'processed-image.png';
+    link.download = `processed-image.${format}`;
     link.click();
     URL.revokeObjectURL(url);
   };
@@ -200,9 +201,21 @@ const ImageUpload = () => {
                     alt="Processed"
                     className="w-full h-full object-contain"
                   />
+                  <div className="mt-2">
+                    <label className="mr-2 text-sm font-medium">Download as:</label>
+                    <select
+                      value={format}
+                      onChange={(e) => setFormat(e.target.value as 'png' | 'jpeg' | 'svg')}
+                      className="border rounded px-2 py-1 text-sm"
+                    >
+                      <option value="png">PNG</option>
+                      <option value="jpeg">JPEG</option>
+                      <option value="svg">SVG</option>
+                    </select>
+                  </div>
                   <button
                     onClick={downloadImage}
-                    className="mt-4 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md text-sm"
+                    className="mt-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md text-sm"
                   >
                     Download Processed Image
                   </button>
