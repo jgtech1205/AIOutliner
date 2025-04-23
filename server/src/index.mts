@@ -14,7 +14,7 @@ const port = process.env.PORT || 8000;
 
 const allowedOrigins = [
   'http://localhost:5173',
-  'https://your-production-app.com'
+  'https://ai-outliner.vercel.app'
 ];
 
 app.use(cors({

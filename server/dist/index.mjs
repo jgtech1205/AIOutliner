@@ -12,7 +12,7 @@ const allowedOrigins = [
     'http://localhost:5173',
     'https://your-production-app.com'
 ];
-const corsOptions = {
+app.use(cors({
     origin: (origin, callback) => {
         if (!origin || allowedOrigins.includes(origin)) {
             callback(null, true);
@@ -24,8 +24,7 @@ const corsOptions = {
     credentials: true,
     methods: ['GET', 'POST', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization']
-};
-app.use(cors(corsOptions));
+}));
 app.use(express.json({ limit: '10mb' }));
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 // Health check
@@ -35,7 +34,7 @@ app.get('/', (_req, res) => {
         timestamp: new Date().toISOString()
     });
 });
-// Image processing route
+// Image processing endpoint
 app.post('/process-image', async (req, res) => {
     try {
         const { image_path, format = 'png' } = req.body;
@@ -53,17 +52,14 @@ app.post('/process-image', async (req, res) => {
             const preProcessed = await sharp(buffer)
                 .resize({ width: 800 })
                 .grayscale()
-                .normalize() // boost contrast automatically
-                .modulate({ brightness: 1.1 }) // ONLY brightness allowed here
-                .threshold(128) // clear black & white split
-                .flatten({ background: { r: 255, g: 255, b: 255 } })
-                .sharpen()
-                .png()
+                .normalize() // enhance global contrast
+                .threshold(120) // binarize image (0-255)
+                .toFormat('png') // required input format for potrace
                 .toBuffer();
             const tracer = new Potrace({
                 threshold: 128,
-                turdSize: 50,
-                optCurve: true,
+                turdSize: 50, // removes tiny specks
+                optTolerance: 0.4, // simplify curves (0–1)
                 color: 'black',
                 background: 'white'
             });
@@ -108,11 +104,9 @@ app.post('/process-image', async (req, res) => {
         });
     }
 });
-// Uncaught error listener
 process.on('uncaughtException', (err) => {
     console.error('Uncaught Exception:', err);
 });
-// Start server
 app.listen(port, () => {
     console.log(`🚀 Server is running on port ${port}`);
     console.log(`🌐 CORS enabled for: ${allowedOrigins.join(', ')}`);
