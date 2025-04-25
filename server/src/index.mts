@@ -10,12 +10,14 @@ import { Potrace } from 'potrace';
 dotenv.config();
 
 const app = express();
-const port = Number(process.env.PORT) || 8000; // ✅ Fixed: cast PORT to number
+const port = Number(process.env.PORT) || 8000;
 
 const allowedOrigins = [
   'http://localhost:5173',
-  'https://ai-outliner.vercel.app'
+  'https://ai-outliner.vercel.app',
+  'https://aioutliner1.vercel.app' 
 ];
+
 
 app.use(cors({
   origin: (origin, callback) => {
