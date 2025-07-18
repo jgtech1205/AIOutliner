@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Upload, Image as ImageIcon, Loader, Trash2 } from 'lucide-react';
+import { Loader, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { supabase } from '../lib/supabase';
 import { ensureStorageBucket } from '../lib/storage';
@@ -157,7 +157,7 @@ const ImageUpload = () => {
       <div className="bg-white rounded-lg shadow-md p-6">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-bold flex items-center">
-            <ImageIcon className="w-6 h-6 mr-2 text-indigo-600" />
+            <img src="/AO logo.png" alt="AO" className="w-6 h-6 mr-2" />
             Image Processor
           </h1>
           {state.preview && (
@@ -183,7 +183,7 @@ const ImageUpload = () => {
               />
             ) : (
               <label className="flex flex-col items-center justify-center h-64 cursor-pointer text-gray-500">
-                <Upload className="w-10 h-10 mb-2" />
+                <img src="/AO logo.png" alt="AO" className="w-10 h-10 mb-2" />
                 <span className="text-indigo-600">Click to upload</span>
                 <span className="text-sm">JPG/PNG (max 5MB)</span>
                 <input

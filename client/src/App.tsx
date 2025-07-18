@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Toaster } from 'react-hot-toast';
-import { LogIn, UserPlus, Image as ImageIcon, Sparkles, Zap } from 'lucide-react';
+import { LogIn, UserPlus, Sparkles, Zap } from 'lucide-react';
 import { Auth } from './components/Auth';
 import ImageUpload from './components/ImageUpload';
 import { supabase } from './lib/supabase';
@@ -32,7 +32,7 @@ function App() {
             <div className="flex justify-between h-16 items-center">
               <div className="flex items-center space-x-3">
                 <div className="relative">
-                  <ImageIcon className="w-8 h-8 text-indigo-600" />
+                  <img src="/AO logo.png" alt="AO" className="w-8 h-8" />
                   <Sparkles className="w-4 h-4 text-amber-400 absolute -top-1 -right-1" />
                 </div>
                 <div>
@@ -85,7 +85,7 @@ function App() {
             <div className="flex items-center justify-center mb-4">
               <div className="relative">
                 <div className="w-16 h-16 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg">
-                  <ImageIcon className="w-8 h-8 text-white" />
+                  <img src="/AO logo.png" alt="AO" className="w-8 h-8" />
                 </div>
                 <div className="absolute -top-1 -right-1 w-6 h-6 bg-gradient-to-r from-amber-400 to-orange-500 rounded-full flex items-center justify-center">
                   <Zap className="w-3 h-3 text-white" />
