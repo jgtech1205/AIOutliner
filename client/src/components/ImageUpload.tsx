@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Upload, Image as ImageIcon, Loader, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { supabase } from '../lib/supabase';
+import { ensureStorageBucket } from '../lib/storage';
 
 interface UploadState {
   file: File | null;
@@ -25,7 +26,7 @@ const ImageUpload = () => {
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      async (event, session) => {
         setSession(session);
         if (event === 'SIGNED_OUT') {
           setState({
@@ -35,6 +36,9 @@ const ImageUpload = () => {
             processedBlob: null,
             isLoading: false
           });
+        } else if (event === 'SIGNED_IN' && session) {
+          // Ensure storage bucket exists when user signs in
+          await ensureStorageBucket();
         }
       }
     );
@@ -195,20 +199,25 @@ const ImageUpload = () => {
           {/* Processed Result */}
           <div className="border-2 border-gray-200 rounded-lg p-4">
             <h2 className="text-lg font-medium mb-3">Processed Result</h2>
-            <div className="h-64 flex flex-col items-center justify-center bg-gray-50 rounded">
-              {state.processed ? (
-                <>
+            {state.processed ? (
+              <div className="space-y-4">
+                {/* Image container with same styling as original */}
+                <div className="h-64 bg-gray-50 rounded flex items-center justify-center">
                   <img
                     src={state.processed}
                     alt="Processed"
-                    className="w-full h-full object-contain"
+                    className="w-full h-64 object-contain rounded"
                   />
-                  <div className="mt-2">
-                    <label className="mr-2 text-sm font-medium">Download as:</label>
+                </div>
+                
+                {/* Download controls */}
+                <div className="flex flex-col space-y-2">
+                  <div className="flex items-center justify-center space-x-2">
+                    <label className="text-sm font-medium text-gray-700">Download as:</label>
                     <select
                       value={format}
                       onChange={(e) => setFormat(e.target.value as 'png' | 'jpeg' | 'svg')}
-                      className="border rounded px-2 py-1 text-sm"
+                      className="border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     >
                       <option value="png">PNG</option>
                       <option value="jpeg">JPEG</option>
@@ -217,17 +226,19 @@ const ImageUpload = () => {
                   </div>
                   <button
                     onClick={downloadImage}
-                    className="mt-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md text-sm"
+                    className="w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md text-sm font-medium transition-colors duration-200"
                   >
                     Download Processed Image
                   </button>
-                </>
-              ) : (
+                </div>
+              </div>
+            ) : (
+              <div className="h-64 flex flex-col items-center justify-center bg-gray-50 rounded">
                 <div className="text-center text-gray-400 p-4">
                   {state.preview ? 'Ready to process' : 'Upload an image first'}
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         </div>
 
