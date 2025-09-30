@@ -4,7 +4,7 @@ AI Outliner is a full‑stack app that lets users upload an image, process it in
 
 ### Monorepo layout
 - `client/`: React app (Vite, Tailwind). Handles auth, upload to Supabase Storage, and calls the server API.
-- `server/`: Express service that fetches the image from Supabase public URL, processes it, and returns PNG/JPEG/SVG.
+- `server/`: Express service that fetches the image from Supabase public URL, processes it, and returns PNG/JPEG.
 
 ---
 
