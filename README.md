@@ -112,7 +112,7 @@ If you host the client elsewhere, add the origin in `server/src/index.mts` under
     ```json
     {
       "image_path": "https://<public-url-to-image>",
-      "format": "png" | "jpeg" | "png"
+      "format": "png" | "jpeg"
     }
     ```
   - Response: image bytes with appropriate `Content-Type`.
@@ -134,7 +134,7 @@ curl -X POST \
 1. Sign up/sign in (Supabase Auth).
 2. Upload a PNG/JPG (max 5MB). The file is stored at `uploads/<userId>/<timestamp>-<filename>`.
 3. Click “Process Image”. The client requests the server with the public URL.
-4. Preview and download the processed image as PNG/JPEG/SVG.
+4. Preview and download the processed image as PNG/JPEG.
 
 ---
 
